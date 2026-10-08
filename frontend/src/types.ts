@@ -30,12 +30,14 @@ export interface ChatMessage {
   stages?: StageItem[]
 }
 
-/** 左栏会话列表项 */
+/** 左栏会话列表项（字段与后端 /api/sessions 的返回一一对应） */
 export interface SessionSummary {
-  session_id: string
+  /** 会话 id，同时用作 LangGraph 的 thread_id（后端字段名就叫 id） */
+  id: string
   title: string
-  created_at: number
-  last_active: number
+  /** ISO 字符串，形如 2026-10-08T18:41:12（无时区，按本地时间解析） */
+  created_at: string
+  last_active: string
   turns: number
 }
 

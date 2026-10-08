@@ -20,9 +20,10 @@ import type { ChatMessage, DocumentsInfo, SessionSummary } from './types'
 // 后端 LangGraph 的 checkpointer 保存的是「给模型看的多轮记忆」，
 // 并不提供「按会话拉历史消息」的接口；而用户刷新页面不该丢对话，
 // 所以前端自己留一份。生产级做法是把消息落库，这里第一版先用浏览器存储。
-const LS_SESSIONS = 'optics-rag-agent:sessions:v1'
-const LS_MESSAGES = 'optics-rag-agent:messages:v1'
-const LS_CURRENT = 'optics-rag-agent:current:v1'
+// v2：会话字段由 session_id 改为与后端一致的 id，并改用 ISO 时间字符串。
+const LS_SESSIONS = 'optics-rag-agent:sessions:v2'
+const LS_MESSAGES = 'optics-rag-agent:messages:v2'
+const LS_CURRENT = 'optics-rag-agent:current:v2'
 
 function loadLocal<T>(key: string, fallback: T): T {
   try {
@@ -33,9 +34,22 @@ function loadLocal<T>(key: string, fallback: T): T {
   }
 }
 
-const nowSec = () => Date.now() / 1000
+/** 生成本地时间戳，格式与后端 `_now()` 一致（无时区，形如 2026-10-08T18:41:12） */
+function nowIso(): string {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return (
+    `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` +
+    `T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+  )
+}
+
 const rid = (prefix: string) =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
+
+/** ISO 字符串可直接按字典序比较大小，省掉转 Date 的开销 */
+const byRecent = (a: SessionSummary, b: SessionSummary) =>
+  (b.last_active || '').localeCompare(a.last_active || '')
 
 export default function App() {
   const [sessions, setSessions] = useState<SessionSummary[]>(() => loadLocal(LS_SESSIONS, []))
@@ -56,6 +70,22 @@ export default function App() {
   useEffect(() => void localStorage.setItem(LS_MESSAGES, JSON.stringify(messagesMap)), [messagesMap])
   useEffect(() => void localStorage.setItem(LS_CURRENT, JSON.stringify(currentSid)), [currentSid])
 
+  /** 把后端已登记的会话并进来。后端重启后内存登记表会清空，
+   *  所以这里做并集而不是覆盖 —— 否则本地历史会凭空消失。 */
+  const mergeRemoteSessions = useCallback(async () => {
+    try {
+      const remote = await fetchSessions()
+      if (remote.length === 0) return
+      setSessions((prev) => {
+        const seen = new Set(prev.map((s) => s.id))
+        const merged = [...prev, ...remote.filter((r) => !seen.has(r.id))]
+        return merged.sort(byRecent)
+      })
+    } catch {
+      /* 后端不可达时保持本地列表即可 */
+    }
+  }, [])
+
   // ── 首次加载：探活 + 知识库概况 + 后台已有会话 ──
   useEffect(() => {
     fetchHealth()
@@ -63,19 +93,8 @@ export default function App() {
       .catch(() => setHealth({ status: 'down', has_api_key: false }))
 
     fetchDocuments().then(setKb).catch(() => undefined)
-
-    fetchSessions()
-      .then((remote) => {
-        if (remote.length === 0) return
-        // 后端重启后本地仍留着旧会话，这里做并集，避免历史凭空消失
-        setSessions((prev) => {
-          const seen = new Set(prev.map((s) => s.session_id))
-          const merged = [...prev, ...remote.filter((r) => !seen.has(r.session_id))]
-          return merged.sort((a, b) => b.last_active - a.last_active)
-        })
-      })
-      .catch(() => undefined)
-  }, [])
+    void mergeRemoteSessions()
+  }, [mergeRemoteSessions])
 
   const messages = currentSid ? (messagesMap[currentSid] ?? []) : []
 
@@ -99,9 +118,9 @@ export default function App() {
   const ensureSession = useCallback(() => {
     if (currentSid) return currentSid
     const sid = newSessionId()
-    const ts = nowSec()
+    const ts = nowIso()
     setSessions((prev) => [
-      { session_id: sid, title: '新会话', created_at: ts, last_active: ts, turns: 0 },
+      { id: sid, title: '新会话', created_at: ts, last_active: ts, turns: 0 },
       ...prev,
     ])
     setCurrentSid(sid)
@@ -128,12 +147,12 @@ export default function App() {
       }))
       setSessions((prev) =>
         prev.map((s) =>
-          s.session_id === sid
+          s.id === sid
             ? {
                 ...s,
                 // 第一轮用提问前缀当标题（与后端 _touch_session 规则一致）
                 title: s.turns === 0 ? trimmed.slice(0, 24) : s.title,
-                last_active: nowSec(),
+                last_active: nowIso(),
                 turns: s.turns + 1,
               }
             : s,
@@ -145,7 +164,7 @@ export default function App() {
       abortRef.current = ac
 
       // 轨迹数组里「保留最新一个 pending 占位」，其余按到达顺序排列
-      const upsertStage = (item: ChatMessage['stages'] extends (infer T)[] | undefined ? T : never) =>
+      const upsertStage = (item: NonNullable<ChatMessage['stages']>[number]) =>
         patchMessage(sid, asstId, (m) => ({
           ...m,
           stages: [...(m.stages ?? []).filter((x) => !x.pending), item],
@@ -157,8 +176,7 @@ export default function App() {
           sid,
           {
             onStage: (s) => upsertStage({ ...s }),
-            onPending: (label) =>
-              upsertStage({ stage: '__pending__', label, pending: true }),
+            onPending: (label) => upsertStage({ stage: '__pending__', label, pending: true }),
             onToken: (t) =>
               patchMessage(sid, asstId, (m) => ({ ...m, content: m.content + t })),
             // 模型长回答被上游掐断 → 后端重试前会发 reset。
@@ -198,8 +216,11 @@ export default function App() {
         busyRef.current = false
         abortRef.current = null
       }
+
+      // 后端在 done 时才更新 turns / last_active，这里拉一次保持一致
+      void mergeRemoteSessions()
     },
-    [ensureSession, patchMessage],
+    [ensureSession, patchMessage, mergeRemoteSessions],
   )
 
   const stop = useCallback(() => abortRef.current?.abort(), [])
@@ -208,9 +229,9 @@ export default function App() {
   const createSession = useCallback(() => {
     if (busyRef.current) return
     const sid = newSessionId()
-    const ts = nowSec()
+    const ts = nowIso()
     setSessions((prev) => [
-      { session_id: sid, title: '新会话', created_at: ts, last_active: ts, turns: 0 },
+      { id: sid, title: '新会话', created_at: ts, last_active: ts, turns: 0 },
       ...prev,
     ])
     setCurrentSid(sid)
@@ -219,8 +240,8 @@ export default function App() {
   const removeSession = useCallback(
     async (sid: string) => {
       setSessions((prev) => {
-        const rest = prev.filter((s) => s.session_id !== sid)
-        if (sid === currentSid) setCurrentSid(rest[0]?.session_id ?? '')
+        const rest = prev.filter((s) => s.id !== sid)
+        if (sid === currentSid) setCurrentSid(rest[0]?.id ?? '')
         return rest
       })
       setMessagesMap((prev) => {
@@ -252,12 +273,7 @@ export default function App() {
         onNew={createSession}
         onDelete={removeSession}
       />
-      <ChatPanel
-        messages={messages}
-        streaming={streaming}
-        onSend={send}
-        onStop={stop}
-      />
+      <ChatPanel messages={messages} streaming={streaming} onSend={send} onStop={stop} />
     </div>
   )
 }
