@@ -1,0 +1,29 @@
+# ── 敏感 / 本地文件，禁止提交 ──────────────────────────
+# 密钥
+.env
+# 未发表的论文与实验材料（真实光学语料，切勿外传）
+data/docs/
+# 向量库（可重建）
+data/chroma_db/
+# 父块仓库（可重建；内容等同语料，同样不可外传）
+data/parent_store/
+# 重排 / 嵌入模型缓存（不入库）
+data/models/
+# 环境与缓存
+.venv/
+.piptmp/
+__pycache__/
+*.pyc
+.idea/
+
+# 运行期产物（本地临时文件，不入库）
+*.log
+snap_probe.txt
+eval_report*.json
+htmlcov/
+.pytest_cache/
+
+# 参考资料：第三方开源仓库克隆（体积大，且各自有 git 历史，不入库）
+refs/
+# legacy 目录下的运行日志
+legacy/run_log*.txt
