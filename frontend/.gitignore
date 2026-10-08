@@ -1,0 +1,9 @@
+# 依赖与构建产物（均可重建，不入库）
+node_modules/
+dist/
+*.local
+.vite/
+
+# 编辑器
+.vscode/
+.idea/
