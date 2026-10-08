@@ -24,6 +24,7 @@
 """
 
 import os
+import time
 
 # 环境自举（与其他模块一致，保证单独运行本模块时也生效）
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
@@ -145,6 +146,53 @@ def _llm(purpose: str = "answer"):
     except ImportError:
         from rag_agent import build_llm
     return build_llm(purpose=purpose)
+
+
+def _notify_reset(reason: str = "retry") -> None:
+    """告诉前端：本轮已流出的 token 作废，请清空。
+
+    为什么需要它？
+    ─────────────
+    `_invoke_llm` 失败重试时会**重新**流一遍完整回答。若不通知前端，
+    用户会看到「半截 + 完整」两段重复内容 —— 实测就出现过：token 拼接 2156 字，
+    而最终答案只有 1152 字，多出来的正好是失败那一遍的残留。
+
+    实现方式：用 LangGraph 的 stream writer 往「custom」通道塞一条信号，
+    由 main.py 的 `_stream_graph` 转成 SSE 的 reset 事件。
+    仅在流式调用（astream + stream_mode 含 "custom"）下有效；
+    普通 `graph.invoke()` 没有 writer，这里静默跳过，不影响同步接口。
+    """
+    try:
+        from langgraph.config import get_stream_writer
+    except ImportError:
+        return
+    try:
+        get_stream_writer()({"kind": "reset", "reason": reason})
+    except Exception:  # noqa: BLE001 —— 不在图上下文里会抛错，属预期情况
+        pass
+
+
+def _invoke_llm(llm, prompt, config, attempts: int = 2) -> str:
+    """调用模型并把整段回答取成字符串，失败自动重试。
+
+    为什么必须重试？
+    ─────────────
+    开启流式输出后，模型的响应改走 **SSE 长连接**。
+    实测当回答较长（本次约 180 秒）时，上游会中途掐断连接，抛出
+    `Upstream stream terminated unexpectedly before completion` —— 整次调用作废，
+    用户拿到的是错误兜底文案。这类瞬时故障重试一次即可恢复，成本远低于让用户重问。
+    """
+    last: Exception | None = None
+    for i in range(max(1, attempts)):
+        try:
+            return llm.invoke(prompt, config=config).content.strip()
+        except Exception as e:  # noqa: BLE001
+            last = e
+            if i < attempts - 1:
+                # 先让前端把已经显示的半截内容丢掉，再重新调用
+                _notify_reset("retry")
+                time.sleep(1.5)   # 稍作等待，避开瞬时抖动
+    raise last  # type: ignore[misc]
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -402,7 +450,7 @@ def retrieve_one(state, config: RunnableConfig) -> dict:
         HumanMessage(content=SUB_ANSWER_USER_TEMPLATE.format(context=context, question=question)),
     ]
     try:
-        ans = llm.invoke(prompt, config=config).content.strip()
+        ans = _invoke_llm(llm, prompt, config)
     except Exception as e:  # noqa: BLE001
         ans = f"（{question}）生成失败：{str(e)[:120]}"
     # ⚠️ 必须把 docs 一并写回 state：
@@ -453,10 +501,12 @@ def respond(state: State, config: RunnableConfig) -> dict:
         HumanMessage(content=AGGREGATE_USER_TEMPLATE.format(question=question, answers=answers_text)),
     ]
     try:
-        reply = llm.invoke(prompt, config=config)
+        reply = AIMessage(content=_invoke_llm(llm, prompt, config))
     except Exception as e:  # noqa: BLE001
+        # 汇总失败的降级：不丢信息 —— 把各子答案原样列出，用户仍能拿到全部内容
         body = "\n\n".join(f"【{i}】{a}" for i, a in enumerate(answers, 1))
-        reply = AIMessage(content=f"（汇总失败：{str(e)[:100]}）\n\n{body}")
+        reply = AIMessage(content=f"（自动汇总未完成，以下直接列出各子问题的回答）\n\n{body}")
+        print(f"[warn] respond 汇总失败：{type(e).__name__}: {str(e)[:120]}")
     return {"messages": [reply]}
 
 

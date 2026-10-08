@@ -108,7 +108,7 @@ cd app
 
 ```
 rag-demo/
-├─ app/                      # ⭐ 核心代码
+├─ app/                      # ⭐ 后端核心代码
 │  ├─ chunker.py             #    父子分层切块 + 表格展开 + 父块仓库
 │  ├─ knowledge_base.py      #    混合检索(RRF) + CrossEncoder 重排 + 来源加权
 │  ├─ rag_graph.py           #    ⭐ LangGraph 主图（6 能力全在这）
@@ -116,10 +116,20 @@ rag-demo/
 │  ├─ state.py               #    图状态定义（含并行 reducer）
 │  ├─ prompts.py             #    全部提示词集中管理
 │  ├─ config.py              #    全部可调参数集中管理
-│  ├─ main.py                #    FastAPI 服务
+│  ├─ main.py                #    FastAPI 服务（含 SSE 流式 + 前端静态托管）
 │  ├─ eval_rag.py            #    检索层评测（三模式对比）
+│  ├─ eval_gen.py            #    生成层评测（RAGAS）
 │  ├─ verify_p1.py           #    Agentic 行为验证
 │  └─ test_rag.py            #    服务链路测试
+├─ frontend/                 # ⭐ 前端（Vite + React + TypeScript）
+│  ├─ src/
+│  │  ├─ App.tsx             #    会话管理 + 流式状态编排 + 本地持久化
+│  │  ├─ api.ts              #    接口封装（含手写 SSE 解析）
+│  │  ├─ types.ts            #    与后端返回一一对应的类型
+│  │  ├─ markdown.tsx        #    轻量富文本渲染（不引 markdown 依赖）
+│  │  └─ components/         #    Sidebar / ChatPanel / MessageBubble / StageTrail
+│  ├─ vite.config.ts         #    开发期 /api 代理到 8000
+│  └─ dist/                  #    构建产物（由 FastAPI 托管，已 .gitignore）
 ├─ data/
 │  ├─ docs/{论文,实验报告,表格}/  # 语料（14 篇，未发表材料，已 .gitignore）
 │  ├─ chroma_db/             #    向量库（可重建）
@@ -156,16 +166,28 @@ cd app
 ../.venv/Scripts/python.exe -c "import knowledge_base as kb; kb.build_vectorstore(force=True)"
 ```
 
-### 4) 问答
+### 4) 构建前端
 
 ```bash
-# 命令行单跑（最直观）
-../.venv/Scripts/python.exe rag_graph.py
-
-# 或起服务
-../.venv/Scripts/python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000
-# → http://127.0.0.1:8000/docs
+cd frontend
+npm install
+npm run build          # 产出 frontend/dist，由 FastAPI 自动托管（同源，无跨域）
 ```
+
+> 开发前端时改用 `npm run dev`（起在 5173，由 Vite 把 `/api` 代理到 8000），
+> 改代码即时热更新，不用反复 build。**改了前端要重新 build 才会体现在 8000 端口。**
+
+### 5) 启动服务
+
+```bash
+cd ../app
+../.venv/Scripts/python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000
+# → 聊天界面   http://127.0.0.1:8000
+# → 接口文档   http://127.0.0.1:8000/docs
+```
+
+> 只想在命令行验证图逻辑（不起前端）：
+> `../.venv/Scripts/python.exe rag_graph.py`
 
 ---
 
