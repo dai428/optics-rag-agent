@@ -39,6 +39,31 @@ __start__ → rewrite ────┼─(问题模糊)───────→ c
                 → 父块聚合 → 来源加权 → Top-5 父块 → 拼上下文
 ```
 
+### 全栈形态：一次提问的完整链路
+
+```
+浏览器 (React)
+  │  POST /api/chat/stream   { message, session_id }
+  ▼
+FastAPI ── 驱动 graph.astream(stream_mode=["updates", "messages", "custom"])
+  │
+  │  SSE 事件（前端按 event 名分发）：
+  │    stage    某节点跑完（含耗时）        → 时间轴打勾
+  │    pending  预告「下一步在做什么」      → 时间轴显示进行中，填补几十秒空窗
+  │    token    逐字输出（按节点过滤）      → 打字机效果
+  │    reset    重试了，作废已显示内容      → 清空气泡（避免答案重复）
+  │    done     权威答案 + 元信息           → 覆盖流式拼接的结果
+  │    error    出错                       → 气泡下方红字提示
+  ▼
+浏览器渲染（消息 + 执行轨迹 + 元信息）
+```
+
+**为什么 token 要按节点过滤？** 图里 6 个节点都调大模型，但只有真正产出答案的
+`clarify` / `respond` 该给用户看；`rewrite`、`clarify_check`、`decompose` 的输出是内部
+中间产物（比如「清晰」两个字）。`retrieve_one` 仅在问题**未被拆分**时才推 ——
+单问题路径的最终答案就在这个节点生成；多子问题时会并行跑多个分支，token 会交错串台，
+必须等 `respond` 汇总（reduce）后再推。
+
 ### 六个 Agentic 能力（都对应一个真实痛点）
 
 | 能力 | 节点 | 解决什么 |
