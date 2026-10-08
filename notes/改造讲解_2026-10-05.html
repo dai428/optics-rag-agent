@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>光学 RAG Agent · 改造讲解</title>
+<style>
+:root{
+  --bg:#faf9f7; --card:#fff; --text:#2c2c2a; --text2:#5f5e5a; --text3:#888780;
+  --line:#e8e6e0; --line2:#d3d1c7;
+  --purple:#534AB7; --purple-bg:#EEEDFE; --purple-d:#26215C;
+  --blue:#185FA5; --blue-bg:#E6F1FB; --blue-d:#042C53;
+  --green:#3B6D11; --green-bg:#EAF3DE; --green-d:#173404;
+  --amber:#854F0B; --amber-bg:#FAEEDA; --amber-d:#412402;
+  --red:#A32D2D; --red-bg:#FCEBEB; --red-d:#501313;
+  --teal:#0F6E56; --teal-bg:#E1F5EE; --teal-d:#04342C;
+  --coral:#993C1D; --coral-bg:#FAECE7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",-apple-system,sans-serif;
+  font-size:14px;line-height:1.75;padding:0 0 80px;
+}
+.wrap{max-width:820px;margin:0 auto;padding:0 24px}
+header{
+  background:var(--card);border-bottom:1px solid var(--line);
+  padding:44px 0 36px;margin-bottom:36px;
+}
+h1{font-size:26px;font-weight:500;letter-spacing:-.3px;margin-bottom:10px}
+.sub{color:var(--text2);font-size:13.5px}
+.meta{margin-top:16px;font-size:12.5px;color:var(--text3);display:flex;gap:20px;flex-wrap:wrap}
+.meta span{display:flex;align-items:center;gap:6px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+h2{
+  font-size:19px;font-weight:500;margin:44px 0 16px;padding-bottom:10px;
+  border-bottom:1px solid var(--line2);letter-spacing:-.2px;
+}
+h3{font-size:15.5px;font-weight:500;margin:28px 0 12px;color:var(--text)}
+h4{font-size:14px;font-weight:500;margin:20px 0 8px;color:var(--text2)}
+p{margin:10px 0}
+ul,ol{margin:10px 0 10px 22px}
+li{margin:6px 0}
+code{
+  font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  font-size:12.5px;background:#f1efe8;padding:2px 6px;border-radius:4px;
+  color:var(--coral);
+}
+pre{
+  background:#2c2c2a;color:#eae9e4;border-radius:10px;padding:18px 20px;
+  overflow-x:auto;margin:14px 0;font-size:12.5px;line-height:1.65;
+}
+pre code{background:none;color:inherit;padding:0;font-size:12.5px}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:20px 22px;margin:16px 0;
+}
+.card.k-purple{background:var(--purple-bg);border-color:#CECBF6}
+.card.k-blue{background:var(--blue-bg);border-color:#B5D4F4}
+.card.k-green{background:var(--green-bg);border-color:#C0DD97}
+.card.k-amber{background:var(--amber-bg);border-color:#FAC775}
+.card.k-red{background:var(--red-bg);border-color:#F7C1C1}
+.card.k-teal{background:var(--teal-bg);border-color:#9FE1CB}
+.card-t{font-weight:500;font-size:14px;margin-bottom:8px}
+.k-purple .card-t{color:var(--purple-d)}
+.k-blue .card-t{color:var(--blue-d)}
+.k-green .card-t{color:var(--green-d)}
+.k-amber .card-t{color:var(--amber-d)}
+.k-red .card-t{color:var(--red-d)}
+.k-teal .card-t{color:var(--teal-d)}
+.card p:last-child,.card ul:last-child{margin-bottom:0}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px}
+th{
+  background:#f1efe8;text-align:left;padding:10px 12px;font-weight:500;
+  border-bottom:1px solid var(--line2);font-size:12.5px;color:var(--text2);
+}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+.pill{
+  display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:20px;
+  font-weight:500;white-space:nowrap;
+}
+.p-ok{background:var(--green-bg);color:var(--green-d)}
+.p-warn{background:var(--amber-bg);color:var(--amber-d)}
+.p-bad{background:var(--red-bg);color:var(--red-d)}
+.p-info{background:var(--blue-bg);color:var(--blue-d)}
+.p-new{background:var(--purple-bg);color:var(--purple-d)}
+.flow{
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:26px 20px;margin:20px 0;overflow-x:auto;
+}
+.step{
+  display:flex;align-items:center;gap:14px;margin:0 auto;max-width:520px;
+  padding:12px 18px;border-radius:10px;font-size:13.5px;
+}
+.step b{font-weight:500}
+.step .n{
+  width:24px;height:24px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:12px;font-weight:500;flex-shrink:0;
+}
+.s-p{background:var(--purple-bg);color:var(--purple-d)}
+.s-p .n{background:var(--purple);color:#fff}
+.s-a{background:var(--amber-bg);color:var(--amber-d)}
+.s-a .n{background:var(--amber);color:#fff}
+.s-b{background:var(--blue-bg);color:var(--blue-d)}
+.s-b .n{background:var(--blue);color:#fff}
+.s-g{background:var(--green-bg);color:var(--green-d)}
+.s-g .n{background:var(--green);color:#fff}
+.arrow{text-align:center;color:var(--text3);font-size:16px;line-height:1.2;margin:2px 0}
+.qbox{
+  border-left:3px solid var(--blue);background:#fff;padding:14px 18px;
+  margin:14px 0;border-radius:0 8px 8px 0;
+}
+.qbox .q{font-weight:500;color:var(--blue-d);margin-bottom:6px;font-size:13.5px}
+.qbox .a{color:var(--text2);font-size:13px}
+.warnbox{
+  border-left:3px solid var(--red);background:var(--red-bg);padding:14px 18px;
+  margin:16px 0;border-radius:0 8px 8px 0;font-size:13px;
+}
+.nav{
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:16px 20px;margin:24px 0;font-size:13px;
+}
+.nav a{color:var(--blue);text-decoration:none;margin-right:16px;display:inline-block;margin:4px 16px 4px 0}
+.nav a:hover{text-decoration:underline}
+footer{
+  text-align:center;color:var(--text3);font-size:12.5px;margin-top:56px;
+  padding-top:24px;border-top:1px solid var(--line);
+}
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:20px 0}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.stat .v{font-size:22px;font-weight:500;color:var(--green-d)}
+.stat .l{font-size:12px;color:var(--text3);margin-top:4px}
+@media(max-width:600px){
+  .wrap{padding:0 16px}
+  h1{font-size:22px}
+  h2{font-size:17px}
+  .step{font-size:12.5px;padding:10px 14px}
+}
+</style>
+</head>
+<body>
+
+<header>
+<div class="wrap">
+<h1>光学 RAG Agent · 改造讲解</h1>
+<div class="sub">把「能跑但讲不清」的项目，改成「结构清楚、能对着面试官讲」的项目</div>
+<div class="meta">
+<span><i class="dot"></i>2026-10-05</span>
+<span>项目：D:\Desktop\rag-demo</span>
+<span>改动：6 个文件</span>
+<span>实测：全链路跑通</span>
+</div>
+</div>
+</header>
+
+<div class="wrap">
+
+<div class="nav">
+<b style="font-weight:500">快速跳转：</b><br>
+<a href="#s0">① 结论速览</a>
+<a href="#s1">② 改造前的病</a>
+<a href="#s2">③ 新结构</a>
+<a href="#s3">④ LangGraph 是什么</a>
+<a href="#s4">⑤ 四个文件逐个讲</a>
+<a href="#s5">⑥ 面试 5 分钟话术</a>
+<a href="#s6">⑦ 高频追问</a>
+<a href="#s7">⑧ 遗留清单</a>
+<a href="#s8">⑨ 命令备查</a>
+</div>
+
+<h2 id="s0">① 结论速览</h2>
+
+<p>这次动了 <b>6 个文件</b>，做了 <b>4 件事</b>：</p>
+
+<table>
+<tr><th style="width:40px">#</th><th>做了什么</th><th>为什么值得讲</th></tr>
+<tr><td>1</td><td>参数全部收进 <code>config.py</code></td><td>面试问「k 值设多少、为什么」你能答</td></tr>
+<tr><td>2</td><td>提示词全部收进 <code>prompts.py</code></td><td>面试问「怎么防幻觉」你能翻开给他看</td></tr>
+<tr><td>3</td><td>手写了一张 LangGraph 流程图</td><td><b>最大的加分项</b>——不是调库，是自己编排</td></tr>
+<tr><td>4</td><td>实现查询改写 + 闲聊路由</td><td>有「超越官方模板」的设计点</td></tr>
+</table>
+
+<p><b>实测结果</b>（不是推测，是跑出来的）：</p>
+
+<div class="stat-row">
+<div class="stat"><div class="v">14 / 869</div><div class="l">材料数 / 片段数</div></div>
+<div class="stat"><div class="v">85%</div><div class="l">检索 Recall@10</div></div>
+<div class="stat"><div class="v">100%</div><div class="l">关键词覆盖</div></div>
+<div class="stat"><div class="v">5</div><div class="l">HTTP 接口</div></div>
+</div>
+
+<ul>
+<li>闲聊「你好呀」→ <b>不检索</b>，直接回答 <span class="pill p-ok">通过</span></li>
+<li>专业问题 → 检索 3 条，基于资料作答并标注来源 <span class="pill p-ok">通过</span></li>
+<li>多轮「<b>那它的</b>定标怎么做才准？」→ 自动改写成「<b>LCVR 的</b>定标怎么做才准？」再去检索 <span class="pill p-ok">通过</span></li>
+</ul>
+
+<h2 id="s1">② 改造前的病（你得先知道治好了什么）</h2>
+
+<div class="card k-red">
+<div class="card-t">病 1 · 参数散落</div>
+<p>「用哪个模型」「检索几条」这些数字写死在业务代码里。想换模型得满地找，面试官问「你 k=3 是怎么定的」，答不上来。</p>
+</div>
+
+<div class="card k-red">
+<div class="card-t">病 2 · 提示词埋在代码里</div>
+<p>你想调一句 prompt，得先读懂 100 行业务逻辑才能找到那行字符串。</p>
+</div>
+
+<div class="card k-red">
+<div class="card-t">病 3 · 流程是黑盒（最要命）</div>
+<p>原来用 <code>create_agent</code>，一行配置生成整个 Agent。能跑，但你<b>没法回答「它在里面到底怎么走的」</b>——框架把流程藏起来了。面试官一追问「它什么时候决定检索」，你就卡住了。</p>
+</div>
+
+<h2 id="s2">③ 改造后的结构</h2>
+
+<pre><code>D:\Desktop\rag-demo\
+├── app\
+│   ├── config.py          ← 【新】所有参数的总开关
+│   ├── prompts.py         ← 【新】所有提示词的集中处
+│   ├── state.py           ← 【新】流程的「共享白板」定义
+│   ├── configuration.py   ← 【新】每次调用可覆盖的参数
+│   ├── rag_graph.py       ← 【新】手写 LangGraph 流程图 ★核心
+│   ├── rag_agent.py       ← 【改】create_agent 黑盒版（保留对照）
+│   ├── knowledge_base.py  ← 【改】修了 glob 隐患
+│   ├── main.py            ← 【改】新增 /graph/chat 接口
+│   ├── eval_rag.py        ← 未动（评测脚本）
+│   └── test_rag.py        ← 未动（测试脚本）
+├── data\
+│   ├── docs\              ← 14 篇真实光学材料
+│   ├── chroma_db\         ← 向量库（869 片段）
+│   └── eval_set.json      ← 20 题评测集
+└── .env.example           ← 【新】可以提交 Git 的配置模板</code></pre>
+
+<div class="card k-purple">
+<div class="card-t">关键设计：两版并存，不是冗余</div>
+<p><code>rag_agent.py</code>（黑盒版）和 <code>rag_graph.py</code>（手写版）<b>故意都留着</b>。面试时你可以说：</p>
+<p style="margin-top:10px">「我先用框架给的 <code>create_agent</code> 跑通，理解 Agent 该有什么；然后自己用 LangGraph 把流程重画了一遍，因为我要加<b>查询改写</b>和<b>闲聊路由</b>，黑盒改不了。」</p>
+<p style="margin-top:10px">这句话一说，面试官会知道你<b>不是为了跑通而跑通</b>。</p>
+</div>
+
+<h2 id="s3">④ LangGraph 到底在干什么</h2>
+
+<h3>一句话理解</h3>
+
+<p><b>LangGraph = 一张流程图 + 一块共享白板。</b></p>
+
+<ul>
+<li><b>节点（Node）</b>：图上的工位，一个工位干一件事。</li>
+<li><b>边（Edge）</b>：工位之间的传送带。</li>
+<li><b>状态（State）</b>：「共享白板」，所有工位都能看、都能往上写。</li>
+</ul>
+
+<p>打个比方：以前写代码是<b>一条直线</b>——第 1 行、第 2 行、第 3 行，从上往下走。LangGraph 是<b>画在墙上的流程图</b>——哪个工位干完活该传给谁，用箭头画出来；条件分支就是「如果 A 就走左边，否则走右边」。</p>
+
+<p>好处是：<b>流程能被看见、能被改、能被讲。</b></p>
+
+<h3>你的流程图长这样</h3>
+
+<div class="flow">
+<div class="step s-p"><span class="n">1</span><span><b>rewrite</b>　用户说「那它的定标怎么做」→ 先把「它」换成「LCVR」</span></div>
+<div class="arrow">↓</div>
+<div class="step s-a"><span class="n">2</span><span><b>条件边</b>　判断：这句是闲聊吗？</span></div>
+<div class="arrow">↓</div>
+<div style="display:flex;gap:14px;max-width:600px;margin:0 auto;flex-wrap:wrap">
+<div class="step s-b" style="flex:1;min-width:200px"><span class="n">3a</span><span><b>retrieve</b>　不是闲聊 → 检索取 3 个片段</span></div>
+<div class="step s-g" style="flex:1;min-width:200px"><span class="n">3b</span><span><b>跳过</b>　是闲聊 → 省掉一次向量查询</span></div>
+</div>
+<div class="arrow">↓</div>
+<div class="step s-g"><span class="n">4</span><span><b>respond</b>　把片段 + 问题一起喂给大模型，照着资料答</span></div>
+</div>
+
+<p><b>三个节点，四句话就能讲完。</b>一条条件边，判断「这句是闲聊吗」。</p>
+
+<h2 id="s4">⑤ 四个文件，逐个讲清</h2>
+
+<h3>5.1 state.py —— 定义白板上记什么</h3>
+
+<pre><code>@dataclass(kw_only=True)
+class State(InputState):
+    queries: Annotated[list[str], add_queries] = field(default_factory=list)
+    retrieved_docs: list[Document] = field(default_factory=list)</code></pre>
+
+<div class="card k-teal">
+<div class="card-t">必须会讲的语法点：Annotated[..., add_queries]</div>
+<p><code>Annotated</code> = 注解，给这个类型附加一条额外说明。<code>add_queries</code> 是一个<b>归约函数（reducer）</b>：</p>
+<pre style="margin:10px 0"><code>def add_queries(existing, new):
+    return list(existing) + list(new)</code></pre>
+<p><b>它解决什么问题？</b> LangGraph 里节点返回 <code>{"queries": [...]}</code> 时，默认行为是<b>覆盖</b>——原列表被整个换掉。加上这个标注后，行为变成<b>追加</b>。</p>
+<p style="margin-top:10px">类比：<code>add_queries</code> 是「往杯子里续水」，而不是「把杯子倒空再装」。最常用的 <code>add_messages</code> 是同一套路，只不过给消息列表用。</p>
+</div>
+
+<h4>为什么用 dataclass 不用 dict？</h4>
+
+<table>
+<tr><th></th><th>dict</th><th>dataclass</th></tr>
+<tr><td>取字段</td><td><code>state["messages"]</code> 要打引号</td><td><code>state.messages</code> 有自动补全</td></tr>
+<tr><td>写错名字</td><td>运行时才炸</td><td>编辑器当场报红</td></tr>
+<tr><td>类型提示</td><td>只能靠注释</td><td>声明式，可被检查</td></tr>
+</table>
+
+<p><code>kw_only=True</code> 意思是「只能用关键字传参」，必须写 <code>State(messages=[...])</code>，不能写 <code>State([...])</code>。参数一多不容易传错位置。</p>
+
+<h3>5.2 configuration.py —— 每次调用换参数</h3>
+
+<p><b>问题</b>：图编译一次很慢（实测 36 秒）。如果每次改个「检索几条」就重新编译，服务没法用。</p>
+
+<p><b>解法</b>：编译一次，调用时传参数进去。</p>
+
+<pre><code>config={"configurable": {"thread_id": "abc", "retrieval_k": 5}}</code></pre>
+
+<p>节点里用 <code>Configuration.from_runnable_config(config)</code> 取出来。它做的事：</p>
+
+<ol>
+<li>先看自己有哪些字段（<code>retrieval_k</code>、<code>response_system_prompt</code>…）</li>
+<li>从 config 里<b>只挑自己的字段</b>，别人的（如 <code>thread_id</code>）忽略</li>
+<li>值为 <code>None</code> 的也忽略 —— 表示「用默认值」</li>
+<li>剩下拼成参数，构造对象</li>
+</ol>
+
+<div class="card k-blue">
+<div class="card-t">这是个典型的「白名单过滤」模式</div>
+<p>只接受自己认识的键，多出来的全部丢掉。这样 LangGraph 往 config 里塞什么新东西，都不会把你的代码搞崩。这个模式在很多地方都能用。</p>
+</div>
+
+<h3>5.3 rag_graph.py —— 核心，手写流程</h3>
+
+<h4>节点函数的统一签名</h4>
+
+<pre><code>def 某节点(state: State, config: RunnableConfig) -> dict:
+    ...
+    return {"要更新的字段": 新值}</code></pre>
+
+<p><b>两个必须记住的规矩：</b></p>
+<ol>
+<li>第一个参数是 state（读白板），第二个是 config（读本次调用参数）</li>
+<li><b>返回值是 dict，只放要改的字段</b>——不是返回整个 state，框架会自动合并</li>
+</ol>
+
+<p>这就是为什么需要归约函数：框架拿到你的 dict，按字段名找到白板上对应的位置，然后用归约函数决定是覆盖还是追加。</p>
+
+<h4>rewrite_query 的三个设计取舍（面试能用）</h4>
+
+<div class="card k-amber">
+<div class="card-t">取舍 1 · 首轮不调模型</div>
+<p>改写的前提是「有上下文可供补全」，首轮没有。直接原话用，<b>省一次 2~5 秒的模型调用</b>。</p>
+</div>
+
+<div class="card k-amber">
+<div class="card-t">取舍 2 · 必须有兜底</div>
+<p>大模型不可靠——可能返回空串、可能啰嗦几百字、可能把问题也答了。所以：</p>
+<pre style="margin:8px 0"><code>if not rewritten or len(rewritten) > 200:
+    rewritten = question   # 退回用原话</code></pre>
+<p><b>宁可改写失败，也不能让整条流程挂掉。</b></p>
+</div>
+
+<div class="card k-amber">
+<div class="card-t">取舍 3 · 异常也退回原话（降级思想）</div>
+<pre style="margin:8px 0"><code>try:
+    rewritten = llm.invoke(prompt).content.strip()
+except Exception:
+    rewritten = question</code></pre>
+<p>改写只是<b>锦上添花</b>，不是主流程。它挂了不该连累整个问答。这叫 <b>fallback（降级）</b>——好学生也能说清楚。</p>
+</div>
+
+<h4>条件边：为什么用规则不用模型</h4>
+
+<pre><code>_CHITCHAT = ("你好", "您好", "hi", "hello", "在吗", "谢谢", ...)
+
+def _is_chitchat(text):
+    t = text.strip().lower()
+    if len(t) &lt;= 4:              # 极短句
+        return True
+    return any(kw in t for kw in _CHITCHAT) and len(t) &lt;= 12</code></pre>
+
+<div class="card k-green">
+<div class="card-t">这个取舍一定要会讲</div>
+<p><b>为什么不用模型判断？</b>两个理由：</p>
+<ol>
+<li><b>省钱省时间</b>：一次模型调用 2~5 秒，规则判断是<b>微秒级</b>。每天闲聊占比不低，这一省很可观。</li>
+<li><b>确定性</b>：规则永远给同样的答案。模型可能「今天心情不好就不检索了」——这种<b>抖动（非确定性）</b>在工程上是灾难，因为你没法复现 bug。</li>
+</ol>
+<p style="margin-top:10px"><b>面试话术</b>：「这类『要不要走某条路』的判断，只要能用规则稳定判准，就不该交给模型。模型该用在真正需要理解语义的地方。」</p>
+</div>
+
+<h4>组装图</h4>
+
+<pre><code>builder = StateGraph(State, input_schema=State)
+builder.add_node("rewrite", rewrite_query)
+builder.add_node("retrieve", retrieve)
+builder.add_node("respond", respond)
+
+builder.add_edge(START, "rewrite")
+builder.add_conditional_edges(
+    "rewrite",
+    route_after_rewrite,
+    {"retrieve": "retrieve", "respond": "respond"},   # 返回值 → 目标节点
+)
+builder.add_edge("retrieve", "respond")
+builder.add_edge("respond", END)
+
+graph = builder.compile(checkpointer=checkpointer)</code></pre>
+
+<p><code>add_conditional_edges</code> 三个参数：① 从哪个节点出发 ② 用哪个函数判断 ③ <b>映射表</b>（返回值 → 目标节点）。</p>
+
+<p>映射表让你<b>节点名字和判断逻辑解耦</b>——判断函数只管返回 <code>"retrieve"</code> 这种语义化的词，映射表决定它对应哪个节点。</p>
+
+<div class="card k-purple">
+<div class="card-t">checkpointer 是会话记忆的原理</div>
+<pre style="margin:8px 0"><code>graph = build_graph_with_memory()   # 内部：InMemorySaver()</code></pre>
+<p>传了 checkpointer 后，每次调用传同一个 <code>thread_id</code>，框架就自动把历史 messages 一起带上。这就是「<b>它记得上一轮聊了什么</b>」的全套实现。</p>
+<p style="margin-top:10px"><code>InMemorySaver</code> 的「InMemory」意思是<b>存内存</b>——进程一重启就没了。生产环境要换 Redis 或数据库版本，这是面试可能追问的点。</p>
+</div>
+
+<h3>5.4 config.py 的超时设计（实测踩出来的坑）</h3>
+
+<div class="warnbox">
+<b>这是本次唯一一个「真踩到、真修了」的工程问题</b>，面试讲这个非常有说服力。
+</div>
+
+<p><b>现象</b>：用 HTTP 服务测多轮对话，第二轮报 <code>模型响应超时，请稍后重试</code>。</p>
+
+<p><b>排查过程</b>：</p>
+<ol>
+<li>先看是不是代码 bug——用 CLI 跑同样三轮，<b>成功</b>。说明代码没问题。</li>
+<li>那就是超时配置问题。查 <code>.env</code>：模型是 <code>Qwen3.8-27B</code>，<b>这是推理模型</b>（会先生成思维链再给答案）。</li>
+<li>实测单次调用耗时：CLI 那轮总耗时 5 分 19 秒跑 3 次调用 —— <b>平均每次 100 秒以上，最长的接近 6 分钟</b>。</li>
+<li>而原来的 <code>request_timeout</code> 写死 <b>120 秒</b>。第二轮要串行调两次模型，必然超时。</li>
+</ol>
+
+<p><b>修法——为什么不直接把 120 改成 600？</b></p>
+
+<p>因为<b>改写成和回答是两个不同性质的任务</b>：</p>
+
+<table>
+<tr><th></th><th>查询改写</th><th>正式回答</th></tr>
+<tr><td>任务</td><td>只输出一句问句</td><td>要组织完整答案</td></tr>
+<tr><td>输出长度</td><td>十几字</td><td>几百字</td></tr>
+<tr><td>需要思维链</td><td>不需要</td><td>需要</td></tr>
+<tr><td>合理超时</td><td><b>60 秒</b></td><td><b>600 秒</b></td></tr>
+</table>
+
+<p>如果统一改成 600 秒，改写卡住时要等 10 分钟才报错——用户早就关了页面。</p>
+
+<pre><code>rewrite_timeout: int = 60     # 查询改写：任务简单
+request_timeout: int = 600    # 正式回答：可能触发长思维链
+rewrite_model: str = ""       # 可选：给改写专门换个小模型</code></pre>
+
+<pre><code>def build_llm(purpose: str = "answer"):
+    if purpose == "rewrite":
+        model = settings.rewrite_model or settings.llm_model
+        timeout = settings.rewrite_timeout
+    else:
+        model = settings.llm_model
+        timeout = settings.request_timeout
+    ...</code></pre>
+
+<div class="card k-blue">
+<div class="card-t">面试话术</div>
+<p>「我一开始超时是写死的 120 秒。实测发现用的是 27B 推理模型，单次最长要 6 分钟，直接超时了。</p>
+<p style="margin-top:8px">但我没有简单地把超时调大——因为改写和回答是两个不同量级的任务。改写只要输出一句问句，卡住就该快速失败；回答要长思维链，必须给足时间。所以我按用途拆成两档，还预留了给改写单独指定小模型的口子。</p>
+<p style="margin-top:8px">这里的原则是：<b>超时不是「越大越好」，而是「按任务的正常耗时设定」，让异常尽早暴露。</b>」</p>
+</div>
+
+<div class="card k-teal">
+<div class="card-t">附：偶发超时的定位过程（这段含金量更高）</div>
+<p>修完超时后，测试中仍偶发超时。我做了三步定位：</p>
+<ol>
+<li><b>先看服务端日志</b>——统计状态码分布：<code>200 OK</code> 出现 4 次、<code>504</code> 只出现 1 次。说明<b>不是稳定失败</b>。</li>
+<li><b>做对照实验</b>——绕开 RAG 图，直接调模型，只花 <b>11 秒</b>返回。说明<b>模型端本身不慢</b>。</li>
+<li><b>对比同一请求的不同时刻</b>——同一个「那它的定标怎么做」：一次 1 分 45 秒成功，另一次超时。</li>
+</ol>
+<p style="margin-top:10px"><b>结论</b>：AMD 共享模型有 <b>16 并发上限</b>。高峰期排队时，长调用（生成几百字带引用的答案）会被拖到超时；空闲时几十秒就回来。</p>
+</div>
+
+<div class="qbox">
+<div class="q">这段经历在面试里怎么讲</div>
+<div class="a">「改完之后还是有偶发超时，我没有当成 bug 去改代码，而是先量化——打日志统计状态码分布，发现 200 和 504 的比例是 4:1，说明是间歇性的。然后又做了个对照实验，绕开整个链路直接调模型，11 秒就返回了，排除了模型本身的性能问题。最后定位到是<b>共享模型的并发排队</b>，属于外部依赖的容量限制，不是我的代码问题。</div>
+<div class="a" style="margin-top:8px">这让我意识到一件事：<b>排查问题要先区分「我的代码」和「外部依赖」，不要一超时就怀疑自己。</b>用最小复现把变量隔离出来，比通读代码快得多。」</div>
+</div>
+
+<h3>5.5 knowledge_base.py 修的那个坑</h3>
+
+<p><b>问题</b>：<code>glob("**/*.md")</code> 到底匹配什么？</p>
+
+<p>很多人以为 <code>**</code> 是「任意路径」，包括当前目录。<b>错。</b></p>
+
+<p><code>pathlib</code> 里的 <code>**</code> 意思是「<b>至少一层</b>子目录」。所以：</p>
+
+<ul>
+<li><span class="pill p-ok">匹配</span> <code>实验报告/xxx.md</code></li>
+<li><span class="pill p-bad">不匹配</span> <code>docs/根目录下的文件.md</code></li>
+</ul>
+
+<div class="warnbox">
+<b>后果</b>：你哪天往 <code>data/docs/</code> 根目录扔一个文件，它会被<b>静默忽略</b>——不报错，就是查不到。这种 bug 最难查，因为没有报错信息。
+</div>
+
+<p><b>修法</b>：补上顶层模式 + set 去重。</p>
+
+<pre><code>_PATTERNS = ("*.md", "*.txt", "*.csv",           # 顶层
+             "**/*.md", "**/*.txt", "**/*.csv")  # 子目录
+
+seen: set[str] = set()
+for pattern in _PATTERNS:
+    for f in sorted(settings.docs_dir.glob(pattern)):
+        if str(f) in seen:
+            continue        # 已处理过，跳过
+        seen.add(str(f))
+        docs.extend(TextLoader(str(f), encoding="utf-8").load())</code></pre>
+
+<p><code>set</code> 去重是 <b>O(1) 查找</b>，比 list 的 O(n) 快。文件多了差距明显。</p>
+
+<p><b>验证</b>：改完重跑，文件数 14、片段数 869——<b>和改之前完全一致</b>，说明去重生效，没有重复建库。</p>
+
+<h2 id="s5">⑥ 面试怎么讲这个项目（5 分钟版）</h2>
+
+<h3>开场（30 秒）</h3>
+
+<div class="qbox">
+<div class="q">「我做了一个面向光学实验数据的 RAG Agent。语料是我自己硕士课题的 14 篇真实材料——LCVR 液晶偏振计的实验报告和论文，切出 869 个片段。整个链路我自己跑通了，检索层的 Recall@10 是 85%，关键词覆盖 100%。」</div>
+<div class="a"><b>为什么这么开场？</b>三个信息一次给到：<b>真实语料</b>（不是玩具数据）、<b>有量化指标</b>（不是「跑通了」）、<b>和专业背景强绑定</b>（不是烂大街的客服问答）。</div>
+</div>
+
+<h3>主体 · 第一层：这是什么</h3>
+
+<div class="qbox">
+<div class="q">「用户问光学专业问题，系统先从我的知识库里检索相关材料，再让大模型<b>基于这些材料</b>回答，并标注来源。核心解决的是大模型<b>幻觉</b>——它不懂 LCVR 的具体参数，但会一本正经编。」</div>
+</div>
+
+<h3>主体 · 第二层：怎么做的（讲流程图）</h3>
+
+<div class="qbox">
+<div class="q">「我用 LangGraph 编了一张三节点的图：<b>改写 → 检索 → 回答</b>。</div>
+<div class="a" style="margin-top:8px">改写节点是关键——用户多轮对话时会说『那它的定标怎么做』，这个『它』直接拿去检索是查不到东西的。所以先让模型把『它』补成『LCVR』，变成完整问句。<br><br>
+中间有一条条件边：如果这句是闲聊，就走另一条路直接回答，不检索。<br><br>
+检索节点用本地的 BGE 中文嵌入模型，Chroma 做向量库。回答节点把检索到的 3 个片段拼进提示词，要求模型严格基于资料作答。」</div>
+</div>
+
+<h3>主体 · 第三层：为什么这么设计（讲取舍）</h3>
+
+<p>这是<b>面试官最想听的部分</b>，准备四个：</p>
+
+<div class="qbox">
+<div class="q">取舍一 · 闲聊判断用规则不用模型</div>
+<div class="a">模型调用要 2~5 秒且结果不确定，规则是微秒级且永远一致。能用规则稳定判准的，不该交给模型。</div>
+</div>
+
+<div class="qbox">
+<div class="q">取舍二 · 改写失败静默降级</div>
+<div class="a">改写只是锦上添花，它挂了就退回用原话，不能让整个问答失败。</div>
+</div>
+
+<div class="qbox">
+<div class="q">取舍三 · 嵌入模型用本地的，生成模型用云端的</div>
+<div class="a">嵌入要跑 869 个片段、每次提问还要跑一次，用 API 又慢又贵，本地模型还能离线用。生成模型只在最后一步调一次，用云端大模型效果好。</div>
+</div>
+
+<div class="qbox">
+<div class="q">取舍四 · 超时按任务量级分档</div>
+<div class="a">改写 60 秒、回答 600 秒。27B 推理模型单次最长要 6 分钟，写死 120 秒必超时；但统一放宽又会让小任务卡死太久。原则是「按正常耗时设定，让异常尽早暴露」。</div>
+</div>
+
+<h3>收尾（30 秒）</h3>
+
+<div class="qbox">
+<div class="q">「我还做了检索层评测，20 道题，Recall@10 是 85%。分析下来瓶颈不在『找不到』，而在<b>排序深度</b>——有 3 道题正确答案排在 7 到 16 位。所以下一步计划做<b>混合检索 + Rerank</b>。」</div>
+<div class="a"><b>这一段的价值</b>：主动暴露问题 + 给出改进方向，展示的是<b>工程判断力</b>，不是「我做完了」。</div>
+</div>
+
+<h2 id="s6">⑦ 高频追问 &amp; 标准答法</h2>
+
+<div class="qbox">
+<div class="q">Q1 · 为什么不用 create_agent 一行搞定？</div>
+<div class="a">「我两个都实现了。create_agent 是黑盒——内部是 ReAct 循环，模型自己决定调不调工具。它能跑，但我想加查询改写和闲聊路由，黑盒改不了。所以我用 LangGraph 自己把流程画出来，每一步都可控可观测。留着黑盒版是做对照。」</div>
+</div>
+
+<div class="qbox">
+<div class="q">Q2 · Annotated[..., add_messages] 是什么？</div>
+<div class="a">「这是 LangGraph 的<b>归约函数</b>机制。默认节点返回同名字段是<b>覆盖</b>，加了归约函数变成<b>追加</b>。add_messages 是官方给的，专门处理消息列表——它还会按消息 id 去重更新。我自己也写了一个 add_queries 处理问句列表，逻辑就是 existing + new。」</div>
+</div>
+
+<div class="qbox">
+<div class="q">Q3 · 会话记忆怎么实现的？</div>
+<div class="a">「编译图时传了 checkpointer=InMemorySaver()。调用时传同一个 thread_id，框架就自动把历史消息带上。原理是 checkpointer 在每个节点执行后把状态存一份快照。注意 InMemorySaver 存在内存里，进程重启就丢，生产环境要换成持久化的。」</div>
+</div>
+
+<div class="qbox">
+<div class="q">Q4 · 怎么防止模型胡说？</div>
+<div class="a">「三道防线。第一，提示词里明确要求『严格基于检索资料，资料没有的就说没找到』。第二，检索结果带来源文件名，要求回答标注出处。第三，我还加了一条——『如果资料只覆盖问题的一部分，就只答覆盖的部分，并说明哪些部分未涉及』。实测效果不错，有一轮回答末尾模型主动列出了三项『资料未涉及的部分』。」</div>
+</div>
+
+<div class="qbox">
+<div class="q">Q5 · 为什么切块大小是 300？</div>
+<div class="a">「先说明这是<b>经验值</b>，不是算出来的。中文 300 字大约是一个完整论述段落的长度——太小会切断语义，太大检索精度下降（一段里混了多个主题）。重叠 50 是为了防止关键句正好被切在边界上。这块我还没做实验对比，属于下一步的调优项。」</div>
+</div>
+
+<div class="warnbox">
+<b>注意</b>：Q5 这种题<b>千万不要硬编数字</b>。老实说「经验值，还没做对比实验」比编一个听起来很专业的数字安全得多。面试官一眼能看出编的。
+</div>
+
+<h2 id="s7">⑧ 遗留问题（老实清单）</h2>
+
+<table>
+<tr><th style="width:36px">#</th><th>问题</th><th>影响</th><th>建议</th></tr>
+<tr><td>1</td><td>Rerank 未做</td><td>Recall@10 85%，瓶颈在排序深度</td><td>下一步做混合检索 + cross-encoder</td></tr>
+<tr><td>2</td><td>切块参数未做对比实验</td><td>300/50 是经验值</td><td>可做一个消融实验</td></tr>
+<tr><td>3</td><td>InMemorySaver 不持久</td><td>服务重启丢记忆</td><td>换 SQLite / Redis checkpointer</td></tr>
+<tr><td>4</td><td>Docker 不熟</td><td>简历上写了 Docker</td><td><span class="pill p-bad">高危</span> 要么学会要么删掉</td></tr>
+<tr><td>5</td><td>AMD 共享模型慢</td><td>单次问答最长 6 分钟</td><td>已放宽超时；建议给改写配小模型</td></tr>
+</table>
+
+<h2 id="s8">⑨ 跑起来（命令备查）</h2>
+
+<pre><code># 进入项目
+cd D:/Desktop/rag-demo
+
+# 【重要】环境准备：清代理 + 指定临时目录
+unset https_proxy http_proxy HTTPS_PROXY HTTP_PROXY ALL_PROXY all_proxy
+export no_proxy="*" NO_PROXY="*"
+export TEMP=D:/Desktop/rag-demo/.piptmp TMP=D:/Desktop/rag-demo/.piptmp
+
+# 1. 测试知识库 + 检索
+cd app &amp;&amp; ../.venv/Scripts/python.exe knowledge_base.py
+
+# 2. 跑手写 LangGraph 版（三轮对话演示）
+../.venv/Scripts/python.exe rag_graph.py
+
+# 3. 跑检索层评测（不花 Key）
+../.venv/Scripts/python.exe eval_rag.py
+
+# 4. 启动 HTTP 服务
+../.venv/Scripts/python.exe -m uvicorn main:app --port 8000 --host 127.0.0.1</code></pre>
+
+<p>服务起来后可以试：</p>
+
+<pre><code>curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/documents
+curl -X POST http://127.0.0.1:8000/graph/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"LCVR 相比传统旋转波片有什么优势？","session_id":"demo"}'</code></pre>
+
+<h2>⑩ 明天你要做的三件事</h2>
+
+<div class="card k-green">
+<div class="card-t">1 · 打开 rag_graph.py 从头读一遍</div>
+<p>不用读懂每一行，重点看三个节点函数的<b>签名</b>和<b>返回值</b>，以及最后的 <code>add_edge</code> / <code>add_conditional_edges</code>。这是整个项目的骨架。</p>
+</div>
+
+<div class="card k-green">
+<div class="card-t">2 · 用自己的话复述一遍流程图（不看文件）</div>
+<p>用户提问 → ？ → ？ → ？。卡在哪一步就回去看哪一段。</p>
+</div>
+
+<div class="card k-green">
+<div class="card-t">3 · 对着第 ⑥ 节念两遍，改成你自己的说法</div>
+<p>不要背，要能随口说出来。</p>
+</div>
+
+<footer>
+光学 RAG Agent 改造讲解 · 2026-10-05<br>
+项目路径 D:\Desktop\rag-demo · 文档由梁子整理
+</footer>
+
+</div>
+</body>
+</html>

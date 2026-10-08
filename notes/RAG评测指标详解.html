@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="F2SlxM4liKLcOl5qhdEHVI">
+<head data-page-node-id="aipJM3EIdGW8yJOPl22dCa">
+<meta charset="UTF-8" data-page-node-id="xlqCYIaOxoDQkbGq7328y7">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="f3RmEXa5BdIj9skgxgM9je">
+<title>RAG 评测指标详解</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#fff; --ink:#1a1d24; --sub:#5b6472; --line:#e6e9ef;
+    --blue:#2563eb; --blue-bg:#eff4ff; --green:#0d9f6e; --green-bg:#e8f7f0;
+    --amber:#c2760a; --amber-bg:#fdf5e6; --purple:#7c3aed; --purple-bg:#f3edff;
+    --red:#c0392b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-size:14.5px;line-height:1.75;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:40px 24px 80px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:24px}
+  h1{font-size:25px;margin:0 0 6px;letter-spacing:-.3px}
+  .meta{color:var(--sub);font-size:13px}
+  .tip{background:var(--blue-bg);border:1px solid #cfe0ff;border-radius:8px;padding:14px 18px;
+    font-size:14px;margin:18px 0}
+  .tip b{color:var(--blue)}
+  h2{font-size:19px;margin:38px 0 6px;padding-left:11px;border-left:4px solid var(--blue)}
+  h3{font-size:16px;margin:24px 0 4px;color:var(--ink)}
+  .lead{color:var(--sub);font-size:13.5px;margin:4px 0 14px;padding-left:15px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:8px;
+    padding:14px 18px;margin:12px 0;box-shadow:0 1px 2px rgba(16,24,40,.03)}
+  .card .def{font-size:14px}
+  .card .def b{color:var(--ink)}
+  .formula{background:#1e2430;color:#e6edf3;padding:9px 14px;border-radius:6px;margin:9px 0;
+    font-family:"SF Mono",Consolas,monospace;font-size:12.5px;overflow-x:auto}
+  .eg{background:var(--green-bg);border-left:3px solid var(--green);border-radius:0 6px 6px 0;
+    padding:8px 13px;margin:8px 0;font-size:13.5px}
+  .eg b{color:var(--green)}
+  .care{color:var(--amber);font-size:13px;margin-top:6px}
+  .care::before{content:"▸ 面试关心：";font-weight:600}
+  code{background:#f0f2f5;padding:1px 5px;border-radius:4px;font-size:12.5px;
+    font-family:"SF Mono",Consolas,monospace;color:var(--red)}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;background:#fff;
+    border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+  th{background:#f0f2f6;text-align:left;padding:10px 12px;font-weight:600;font-size:13px;color:#374151}
+  td{padding:10px 12px;border-top:1px solid var(--line);vertical-align:top}
+  .killer{background:var(--purple-bg);border:1px solid #ddd0f7;border-radius:8px;
+    padding:14px 18px;margin:14px 0;border-left:3px solid var(--purple)}
+  .killer b{color:var(--purple)}
+  footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--sub)}
+</style>
+</head>
+<body data-page-node-id="CZTXhp3XwILjAtBzkSBFWT">
+<div class="wrap" data-page-node-id="2cq9OJwqtY14isbyWP5N7y">
+
+<header data-page-node-id="lttPBbCMFS8izxc9AkutP8">
+  <h1 data-page-node-id="cSlgFyVZr2yt4ZmxXPfenT">RAG 评测指标详解</h1>
+  <div class="meta" data-page-node-id="eMAhlrFt96lG800ztBXkEd">为 张万森 整理 · 配套 <code data-page-node-id="BDL5d5WFVRZLk3MwebKOhG">D:\Desktop\rag-demo</code> · 2026-09-27</div>
+</header>
+
+<div class="tip" data-page-node-id="dL3Hs0yT5pbrfT1JPG62jH">
+  <b data-page-node-id="aJV9Mf3kr04mVf6ZHXDFJr">核心心法：评测必须"分两段"。</b>
+  RAG = 检索 + 生成，中间隔着"模型"这道工序。效果不好时，你得分清是
+  <b data-page-node-id="Ne7aNEZHf8Db6PjOTCn31U">「没找到正确资料」</b>还是<b data-page-node-id="8RFCA2tNX23DcgzM4JT9Dx">「找到了却答错」</b>——混在一起测，等于体检不分开化验，永远查不出病因。
+</div>
+
+<h2 data-page-node-id="UJYaFaGjV8Qxg2HArf2twL">一、检索质量指标（Retrieval）</h2>
+<div class="lead" data-page-node-id="Q2uDbpobFECEdcaUPQtMo7">这一层测的是"资料找得对不对"。不需要 LLM 参与，纯数学计算。</div>
+
+<h3 data-page-node-id="hlWhsbR63lYwWiUxtKoEuw">1. Recall@K（召回率）</h3>
+<div class="card" data-page-node-id="sKEfBaOP9Rd49bxRAYDzdz">
+  <div class="def" data-page-node-id="zmup1gTMGAHaUp37zl3fyO"><b data-page-node-id="rAdJTSqeEBeDucwdyvHDWX">定义：</b>前 K 个检索结果里，覆盖了"全部相关文档"的多大比例。<b data-page-node-id="1LRfH0H7nCDNefRn13OZHS">测的是"有没有漏"。</b></div>
+  <div class="formula" data-page-node-id="3vL7AQn9zURfJPpxqeRfEg">Recall@K = (前K个中命中的相关文档数) / (知识库里全部的相关文档数)</div>
+  <div class="eg" data-page-node-id="5LIgIhnPtZIcd5nskznpLX"><b data-page-node-id="IVronaF6IqAwFCCpDjwaau">例子：</b>知识库里一共有 3 个片段跟答案相关，你的 Top-5 检索抓到了其中 2 个 → <code data-page-node-id="0MS1EZrrgJVVxgcGYrlHRI">Recall@5 = 2/3 ≈ 0.67</code>。漏了 1 个。</div>
+  <div class="care" data-page-node-id="ntPluzyaClkF1V4bda7lj7">"该抓的有没有全抓到"。这是检索的<b data-page-node-id="W3NoPPCIqDhjk0uh97OFet">首要指标</b>——漏了资料，后面神仙也救不回来。</div>
+</div>
+
+<h3 data-page-node-id="uCqh2cWQqb15F17wANf7Of">2. Precision@K（精确率）</h3>
+<div class="card" data-page-node-id="JYgnCartVdI79HRXSD1At1">
+  <div class="def" data-page-node-id="c5dIuszhUFEAj8W7BBlSmd"><b data-page-node-id="4mCFYkXbcGy91IYaWvhb0b">定义：</b>前 K 个结果里，有多少个是真正相关的。<b data-page-node-id="g0fv9lDj3XAMl1g9qUgYQ8">测的是"纯不纯"（噪音多不多）。</b></div>
+  <div class="formula" data-page-node-id="LiIasRyzID6VAMimjHVvJF">Precision@K = (前K个中命中的相关数) / K</div>
+  <div class="eg" data-page-node-id="vEw1Ort1Rh5HyFX2ODpAMi"><b data-page-node-id="JxVMJMbAbmw3QkEn3JHUgj">例子：</b>Top-5 抓到 2 个相关 → <code data-page-node-id="fogHc2dojWGhc9cX5ixQh2">Precision@5 = 2/5 = 0.4</code>。剩下 3 个是噪音，会挤占上下文、干扰模型。</div>
+  <div class="care" data-page-node-id="pL8bY22JlbYg7LisyiTzJd">"抓来的有多少是干货"。太高噪音 → 模型容易被带偏。</div>
+</div>
+
+<h3 data-page-node-id="D0YcvrJKvQd6oJxA0eJGcQ">3. Hit Rate（命中率）</h3>
+<div class="card" data-page-node-id="THqlgSNbpOzoXR9b27XkyN">
+  <div class="def" data-page-node-id="B67xa3YJz3x4Tn3agiwHL0"><b data-page-node-id="l38R9MM6szHOeFIp53QOZS">定义：</b>在所有测试问题里，<b data-page-node-id="IEKaz9613EGcEF9Q7lGTKH">至少命中一个</b>相关文档的问题占比。</div>
+  <div class="formula" data-page-node-id="FE9SYm1FgzT4zzqwrcEaGc">Hit Rate = (Top-K 至少命中 1 个相关文档的问题数) / (总问题数)</div>
+  <div class="eg" data-page-node-id="kn2kG0uYUcY0u5MaW89iWN"><b data-page-node-id="Iwt0gRZDIzL7nHhvs0z6Yi">例子：</b>问了 100 个问题，有 85 个的 Top-5 里至少有一个相关 → <code data-page-node-id="biBED8xfNwCMcnBaEpYUjR">Hit Rate = 0.85</code>。</div>
+  <div class="care" data-page-node-id="ODzLJlQDv3LGQFjNqDvTbw">最粗粒度的"能不能用"。比 Recall 宽松，适合快速摸底。</div>
+</div>
+
+<h3 data-page-node-id="DRY8ywSUuVZ4wQHJtiu7VL">4. MRR（Mean Reciprocal Rank，平均倒数排名）</h3>
+<div class="card" data-page-node-id="8vXZmqBiTpl9IHMcBlOoph">
+  <div class="def" data-page-node-id="NIIPMlkMYuLXhDl952CmiK"><b data-page-node-id="dZYSODLUIeLdTE23Zf8EcO">定义：</b>第一个相关结果排在第几位，取倒数，再对所有问题求平均。<b data-page-node-id="nPA1pXKaki83B0h5egAox8">测的是"对不对得靠前"。</b></div>
+  <div class="formula" data-page-node-id="yFYUANUEePcoXJ9EwNbkCs">RR = 1 / (第一个相关结果的排名)
+MRR = 所有问题 RR 的平均值</div>
+  <div class="eg" data-page-node-id="bHj4zXTmUcyCN8y6jXGLOH"><b data-page-node-id="H9NFZ8W6BF9iydpt6GlJ8i">例子：</b>问"什么是 LCVR"，第一个相关片段排第 3 → <code data-page-node-id="BYjtzI44etGfH7wLHixdi0">RR = 1/3 ≈ 0.33</code>。<br data-page-node-id="TMWtJA716Q0l4oordByLAm">
+  若排第 1 → <code data-page-node-id="Fs2cNLAJOan3WD7tgVSYQ9">RR = 1.0</code>（满分）。多个问题平均后 = MRR。</div>
+  <div class="care" data-page-node-id="6kCkyZuM1wTZSVgnsSQ2wM">因为 LLM 对<b data-page-node-id="W2BQEoW8w7oflbkdGFnLVz">靠前的上下文更敏感</b>（"lost in the middle"），排第 1 和排第 5，效果差很多。</div>
+</div>
+
+<h3 data-page-node-id="SMm5WtABV4y5g6OFRCwORt">5. NDCG（Normalized Discounted Cumulative Gain · 归一化折损累计增益）</h3>
+<div class="card" data-page-node-id="E6ZqNdLIGbaYqTw2gBpILT">
+  <div class="def" data-page-node-id="HnTSS0AbqFxN7sP96bHyFj"><b data-page-node-id="ibmGhOSaOINjeKKNXJCWpH">定义：</b>同时考虑<b>相关性等级</b>和<b>位置权重</b>的排序质量指标，是目前最"讲究"的检索指标。</div>
+  <div class="def" style="margin-top:10px"><b>名字拆开看（理解的钥匙）：</b><br>
+  · <b>Gain 增益</b>：相关性等级，通常 rel = 2/1/0（很相关/一般/不相关）<br>
+  · <b>Cumulative 累计</b>：把每个位置的增益加起来<br>
+  · <b>Discounted 折损</b>：位置越靠后越打折——第 i 位除以 log₂(i+1)<br>
+  · <b>Normalized 归一化</b>：再除以"理想排序的 DCG"，把分数压进 0–1</div>
+  <div class="formula" data-page-node-id="W7CeSISMY7qwULl4UzdpHU">DCG  = Σ (2^rel_i − 1) / log₂(i + 1)
+IDCG = 理想排序（相关性降序）的 DCG
+NDCG = DCG / IDCG</div>
+  <div class="def"><b>折损有多狠？</b>位置 1 权重 = 1.00，位置 5 只剩 <b>0.39</b>——同一个相关文档，排第 1 和排第 5，贡献差约 2.5 倍。</div>
+  <div class="def" style="margin-top:12px"><b>完整算例：</b>一批文档的相关性等级为 [3, 2, 2, 1, 0]（这就是理想顺序）。</div>
+  <div class="formula">【排序 A = 理想顺序】3, 2, 2, 1, 0
+　DCG_A = 7/1 + 3/1.585 + 3/2 + 1/2.322 + 0/2.585 = 10.82
+　IDCG　= 10.82
+　NDCG_A = 10.82 / 10.82 = 1.00　← 满分
+
+【排序 B = 刚好倒过来】0, 1, 2, 2, 3
+　DCG_B = 0/1 + 1/1.585 + 3/2 + 3/2.322 + 7/2.585 = 6.13
+　NDCG_B = 6.13 / 10.82 = 0.57</div>
+  <div class="eg"><b>结论：</b>同一批文档，只是<b>顺序反了</b>，NDCG 就从 1.00 掉到 0.57——<b>这正是它的价值：专门惩罚"排序不好"。</b></div>
+  <div class="care" data-page-node-id="u8GU4AEsH9tMvtiiZGljze">比 MRR 更全面：MRR 只看第一个相关结果，NDCG 看整个排序、还支持相关性分级。<b>代价</b>：需要人工标注相关性等级，成本高。面试主动提这点显专业。</div>
+</div>
+
+<h2 data-page-node-id="j2uk5yMyYcYoeKLjWhHp3r">二、生成质量指标（RAGAS 四大金刚）</h2>
+<div class="lead" data-page-node-id="c1MJD0vszciHaP7rV31FPR">这一层测的是"答得对不对"。需要 LLM 当"裁判"来判断，所以又叫 LLM-as-a-Judge。</div>
+
+<h3 data-page-node-id="ZbkKRmKbObAFTJ8cvI4Fkr">1. Faithfulness（忠实度）—— 防幻觉的核心</h3>
+<div class="card" data-page-node-id="PvlZDmD9gZQwMW5yHnUw5f">
+  <div class="def" data-page-node-id="cuokYJI0sNI5P6dMXsUD0g"><b data-page-node-id="SYubvG4CtlUpNjLIkc6aB8">定义：</b>答案里的每一个论断，是否都能在<b data-page-node-id="nQY3GuM88RQ0m1wWmMqvZr">检索到的上下文</b>里找到依据。</div>
+  <div class="formula" data-page-node-id="h3gmOR1H0Hy8puKv6piMjw">Faithfulness = (能在上下文中找到依据的论断数) / (答案中的论断总数)</div>
+  <div class="eg" data-page-node-id="hGtEx0pNSsRFLALCgYdqHc"><b data-page-node-id="HGMuE5wE60SP9oZKs3q4CZ">例子：</b>答案说了 4 句话，其中 3 句能从资料里找到出处，1 句是模型自己加的 → <code data-page-node-id="HZ4CRURuwAWhdnIcshM7dZ">Faithfulness = 3/4 = 0.75</code>。那 1 句就是幻觉。</div>
+  <div class="care" data-page-node-id="7wyHLavhTN1z6p7QLF6YwG">这是 RAG 的<b data-page-node-id="wvQlJivHQQxaa9IFeuQ20C">命门指标</b>。低了说明模型在编——要么 Prompt 约束不够，要么 temperature 太高。</div>
+</div>
+
+<h3 data-page-node-id="mlL7L0xKiP4p6otCzG6Nc3">2. Answer Relevance（答案相关性）</h3>
+<div class="card" data-page-node-id="rSnDvMl5X3d8R4dk85FsQk">
+  <div class="def" data-page-node-id="KJZx5oph1TbreN7oWoxmwF"><b data-page-node-id="GEWBJ0SOLe45WxpLaP93D4">定义：</b>答案是否<b data-page-node-id="zFGRDJB7wyK5WfIbhHQ2Lg">切题</b>——有没有正面回答用户的问题。</div>
+  <div class="eg" data-page-node-id="7p1BktYV6rsRovNGf1FiDO"><b data-page-node-id="JEIqomuHcTlcTVU54SIKHK">反例：</b>问"LCVR 的优势是什么"，答了一大段"LCVR 的定义和历史"，虽然都对，但<b data-page-node-id="1klxfDfst0Hf1EB4JiUGK1">没回答"优势"</b> → 相关性低。</div>
+  <div class="care" data-page-node-id="7l2x4f7W8ejzdTDK0NXlwf">"答非所问"的检测器。低了一般是 Prompt 或模型能力问题。</div>
+</div>
+
+<h3 data-page-node-id="BuRbxa3MgAkhVDPmZDXWCX">3. Context Precision（上下文精确率）</h3>
+<div class="card" data-page-node-id="i4em4CaLapQQ0WKoHUQDpw">
+  <div class="def" data-page-node-id="Q6TdU3Oblco3dtK99fwoFF"><b data-page-node-id="UAC26lMBE9y3zXbkpt9wmG">定义：</b>检索回来的上下文里，真正有用的信息占比 <b data-page-node-id="dGX1H2rHV7yvwMgHmuuy6n">+ 是否排在前面</b>。</div>
+  <div class="care" data-page-node-id="GvKxXX35zawhQzvjnHCTZ2">本质是"检索质量"在生成侧的体现。低了 → 该加<b data-page-node-id="CGAdzEAF9BEVFOWx3NP0qs">重排（Rerank）</b>或相似度阈值过滤。</div>
+</div>
+
+<h3 data-page-node-id="unp0WcW4BUXSLMZuAdKDQi">4. Context Recall（上下文召回率）</h3>
+<div class="card" data-page-node-id="yV45GEk4wqtM3nZDjxhkF5">
+  <div class="def" data-page-node-id="H1ii69OCLrMHz3BWpgxCrq"><b data-page-node-id="Z8Sq3yT7ME71xLRYjIT9QL">定义：</b>回答这个问题<b data-page-node-id="0ZImKPnW8OmBaI5hfVSTPK">所需的信息，是否都包含在检索到的上下文里</b>。</div>
+  <div class="care" data-page-node-id="awwu8bvoaAY5whO70VDtp9">低了 → 是<b data-page-node-id="SBL3I4SoOurZEmcZUyUqH7">检索漏了</b>：该查切块策略、加混合检索、调 Top-K。</div>
+</div>
+
+<h2 data-page-node-id="Kbt0NnCLkSpKitUMt7zRXv">三、诊断矩阵（最实用的一张表）</h2>
+<div class="lead" data-page-node-id="rmWzuqLTLO9mInD0nPfcSv">拿到指标后，怎么定位问题、开什么药——这张表是面试的"加分神器"。</div>
+
+<table data-page-node-id="p4rZlpwkXjjGwkgWfbeym9">
+  <tr data-page-node-id="79K2jS4iR4x5XHFjK59QGB"><th data-page-node-id="hN1QQlzwIqLQIAMbNDZA4e">症状</th><th data-page-node-id="hlKab2kuEEiNWa6PWV2tDa">病灶</th><th data-page-node-id="nDDk8MHkiyCTemd5PXA7Hc">药方</th></tr>
+  <tr data-page-node-id="N34UVoguIFMdGB2q20hJ3e"><td data-page-node-id="pRyZfcbR1HDaB0oK0RWUp6"><b data-page-node-id="sP5DAEkM6rqCoJ3nwjKOEu">Context Recall 低</b></td><td data-page-node-id="R1LM90bICdY1icyGUFG1SA">检索漏了（该抓的没抓到）</td><td data-page-node-id="IstKMjKrOOaEFmvcr3CfBT">调 chunk 策略 · 加混合检索（BM25）· 增大 Top-K · 查询改写</td></tr>
+  <tr data-page-node-id="TBllauHTvP9vov3bbjXrp3"><td data-page-node-id="KAUQdBxywu7ZFBIFdupXuB"><b data-page-node-id="CtrAfBMcHEhe04sVZOpEcK">Context Precision 低</b></td><td data-page-node-id="aMCBSmBn68Gp3OXGPXlVkI">噪音多（抓来一堆没用的）</td><td data-page-node-id="FPk76Bg62wYfqPatpOw2Hq">加 Rerank 重排 · 相似度阈值过滤 · 元数据过滤</td></tr>
+  <tr data-page-node-id="E8aBQnDvf4AujaiDHPpwxs"><td data-page-node-id="4SiBtb9e1DUT1cccZ2rZ0n"><b data-page-node-id="O6A8FUDEsXejryJX8PxvEG">Faithfulness 低</b></td><td data-page-node-id="HjB35d9iDRXrHeJ4n677Io">模型在编造（幻觉）</td><td data-page-node-id="d8ga5A5TAIiuiVO7IrvuW0">强化 Prompt 约束 · 降 temperature · 换更强模型</td></tr>
+  <tr data-page-node-id="HiG1ORfVLJAYDxNWipgMW7"><td data-page-node-id="X86ZGuLLVvPKczd9HjjWpY"><b data-page-node-id="uM7vGSPvNACeV1rcyEg3Gt">Answer Relevance 低</b></td><td data-page-node-id="RSWCgEAhe2y7B2okovRqjy">答非所问</td><td data-page-node-id="F85zpAEP4GpO8gPJQFI8CD">改 Prompt 模板 · 明确回答格式要求</td></tr>
+  <tr data-page-node-id="zGkB5m0zsVsDo0sMXDtenM"><td data-page-node-id="fAWv67nmPQELEdQhv1qSKq"><b data-page-node-id="FIL0d8FVc30uqFHAp2INFi">检索指标都好，答案还错</b></td><td data-page-node-id="XJLYBrcRPUN33znyWKXgLH">问题在生成段</td><td data-page-node-id="no1Do2pEuYBohve4TY858T">查 Prompt / 模型 / 是否串了上下文</td></tr>
+</table>
+
+<h2 data-page-node-id="rOoSN225XDllhHSV0ab9Rk">四、怎么落地跑起来</h2>
+<div class="card" data-page-node-id="IJIEigJwDqgcgp7gkdEZcZ">
+  <div class="def" data-page-node-id="gWSGNHMwFKZJAkNRPaI86F"><b data-page-node-id="CDevFKIBzvaYQnkXlpKaJI">工具：</b><code data-page-node-id="gfZPXy21GfC5bpwfqTyVFL">RAGAS</code>（最主流）、<code data-page-node-id="gDBbp5qZOHVjjbLQvrbvs4">TruLens</code>、<code data-page-node-id="138JYg8my6rQRH020bLCXu">LangSmith</code>、<code data-page-node-id="jUZVtc0GAcpAgAT1xqr2oO">DeepEval</code>。</div>
+  <div class="def" style="margin-top:8px" data-page-node-id="Oy5ualXMtHD4RukRGJTAZj"><b data-page-node-id="bc1MciWM3fAHYL49VJVU25">跑之前要准备三样东西：</b></div>
+  <div class="def" data-page-node-id="RVljuNY4xGLD6bCfkCbnDt">① <b data-page-node-id="NZjvczYrG03Doul40245qU">问题集</b>（question）：一批真实的用户问题，20–50 条起步<br data-page-node-id="5g0fa7sL5aRzOGd1CY7qbt">
+  ② <b data-page-node-id="2C3Cq8Vu8Us9uMgoTyvcET">标准答案</b>（ground truth）：理想答案，用来算正确性<br data-page-node-id="V2DuliH6iJdKlO9pd9EH2U">
+  ③ <b data-page-node-id="IexVD29aoHhepqDQkPew0x">检索上下文</b>（contexts）：你的系统实际召回的内容</div>
+  <div class="care" data-page-node-id="XsRqoHhJckbYghyrCuhHYv">没有数据集的评测都是耍流氓——凭"感觉好像变好了"调参，是新手最大的坑。</div>
+</div>
+
+<h2 data-page-node-id="brNr1QwzChX24HFz2HxEJt">五、面试怎么答（话术模板）</h2>
+<div class="killer" data-page-node-id="QakJ57RA4CHI1MTOrjBgSz">
+  <b data-page-node-id="RvYegvtPH4YEgfxGeEPgBr">如果面试官问："你怎么评估你的 RAG 系统？"</b><br data-page-node-id="EEKoH87cQjFGMW0IBwFvAA"><br data-page-node-id="JK6AA1zWnhUjTCg1sMgG1g">
+  "我会<b data-page-node-id="KaIq5hlihQwOGKvgk43Cro">分两段评</b>。检索段看 <b data-page-node-id="Il7Z0MeLOOfONVLIdsHLGA">Recall@K 和 MRR</b>，确认该找的资料有没有找到、排得靠不靠前；生成段用 <b data-page-node-id="pJP2cfDCq3O3porWAySzhK">RAGAS 的四大指标</b>——<b data-page-node-id="Ku5pLsAy6GNjnElDYmPMqr">Faithfulness</b> 看有没有编造、<b data-page-node-id="vjNSSAE42eQWV8r2W4oHBP">Answer Relevance</b> 看切不切题、<b data-page-node-id="xSO6Pua18FpiERfUfSEGV7">Context Precision/Recall</b> 看上下文质量。<br data-page-node-id="TCXDOPYMPAx6p7CRPpfeBc"><br data-page-node-id="sqFOCcBSfVGQDgLQq4gbpX">
+  然后我会根据指标<b data-page-node-id="QPgdJZwbfkgNRX7qdymCIs">反向定位问题</b>：如果是 Recall 低，说明检索漏了，我会去调切块或加混合检索；如果是 Faithfulness 低，说明模型在编，我会加强 Prompt 约束。<br data-page-node-id="QlQWQ5BMmemLDvGwwTuDkO"><br data-page-node-id="CeDxEDh0LktD9j08FNsVpT">
+  <b data-page-node-id="pfEjkZB7VTionqaAaYDLZM">关键是不能只看一个总分</b>——不分段，你根本不知道问题出在检索还是生成。"
+</div>
+
+<div class="killer" data-page-node-id="UfFu4eO9ij2UDAuxUV0B5c">
+  <b data-page-node-id="9Qs19p78YkYaPDwdxXOQrS">追问："为什么不能只看最终答案对不对？"</b><br data-page-node-id="Izm6mj2eLNvJqUdtYFRkgP"><br data-page-node-id="I0jNDDph5z4SrzvYludERZ">
+  "因为 RAG 是链路，最终答案对了可能是<b data-page-node-id="mRgWrysTt0Uzd72utPancK">蒙对</b>，错了也说不清是哪一环。<br data-page-node-id="vmelWqllFaPyJEmnOBHKEy">
+  举个例子：知识库里明明有答案，但检索没召回到 → 模型只能瞎猜 → 你看到答案错，却以为是模型不行，去换模型，白折腾。<br data-page-node-id="ysNncplDx9Ek6cS6gWo2s5">
+  <b data-page-node-id="1sXuif9WKYgnFJQQRdA1V8">分段评测才能真正定位问题，指导你优化哪一环。</b>"
+</div>
+
+<footer data-page-node-id="RjVEr1nCArvA6nLdgnIbcL">
+  配套：<code data-page-node-id="GJ3wf3hgqpnn3W2mxXKhee">RAG面试八股清单.html</code>（Q18 的展开版）· 项目 <code data-page-node-id="QwJIvkDt8V2DpfJib6lEuJ">D:\Desktop\rag-demo</code><br data-page-node-id="TXl0qSJ6spXOW7sx9dxwTT">
+  建议动手：用 RAGAS 给你的 <code data-page-node-id="48EfhPL860sAnh8a2PhNxR">rag-demo</code> 打一次分，亲手跑过一遍面试就稳了。
+</footer>
+
+</div>
+</body>
+</html>

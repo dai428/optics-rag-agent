@@ -1,0 +1,15 @@
+# .dockerignore —— 打包时「不装进箱子」的东西
+# 作用一：镜像更小、构建更快
+# 作用二（更重要）：防止把密钥、本地环境一起打进镜像
+
+.venv/
+__pycache__/
+*.pyc
+.idea/
+.git/
+notes/
+legacy/
+
+# 🔴 关键：.env 里有 AMD_API_KEY，绝不能打进镜像
+#    运行时用 --env-file .env 从外面喂进去，密钥就不留在镜像层里了
+.env

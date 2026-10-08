@@ -1,0 +1,17 @@
+fastapi==0.115.6
+uvicorn==0.53.0
+pydantic==2.13.5
+pydantic-settings==2.15.0
+python-dotenv==1.2.3
+openai==3.17.0
+langchain==1.4.2
+langchain-core==1.6.3
+langchain-community==0.4.2
+langchain-openai==1.6.2
+langchain-chroma==1.1.0
+langchain-huggingface==1.2.2
+langgraph==1.2.11
+langgraph-checkpoint==4.2.0
+langgraph-prebuilt==1.1.0
+chromadb==1.5.9
+sentence-transformers==6.1.0

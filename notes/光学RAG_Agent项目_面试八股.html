@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>光学 RAG Agent 项目 · 面试八股清单</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#fff; --ink:#1a1d24; --sub:#5b6472; --line:#e6e9ef;
+    --blue:#2563eb; --blue-bg:#eff4ff; --green:#0d9f6e; --green-bg:#e8f7f0;
+    --amber:#c2760a; --amber-bg:#fdf5e6; --purple:#7c3aed; --purple-bg:#f3edff;
+    --red:#c0392b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-size:14.5px;line-height:1.7;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:40px 24px 80px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:26px}
+  h1{font-size:25px;margin:0 0 6px;letter-spacing:-.3px}
+  .meta{color:var(--sub);font-size:13px}
+  .tip{background:var(--amber-bg);border:1px solid #f0dcae;border-radius:8px;padding:14px 18px;font-size:14px;margin:18px 0}
+  .tip b{color:var(--amber)}
+  h2{font-size:19px;margin:38px 0 4px;padding-left:11px;border-left:4px solid var(--blue)}
+  .lead{color:var(--sub);font-size:13.5px;margin:4px 0 16px;padding-left:15px}
+  .qa{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--blue);
+    border-radius:8px;padding:13px 17px;margin:11px 0;box-shadow:0 1px 2px rgba(16,24,40,.03)}
+  .q{font-weight:600;color:var(--ink);margin-bottom:5px;font-size:15px}
+  .q .n{color:var(--blue);margin-right:6px;font-family:"SF Mono",Consolas,monospace;font-size:13px}
+  .a{color:#2f3743;font-size:14px}
+  .a b{color:var(--ink)}
+  .why{color:var(--green);font-size:13px;margin-top:5px;padding-left:2px}
+  .why::before{content:"▸ 原理：";font-weight:600}
+  code{background:#f0f2f5;padding:1px 5px;border-radius:4px;font-size:12.5px;
+    font-family:"SF Mono",Consolas,monospace;color:var(--red)}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;background:#fff;
+    border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+  th{background:#f0f2f6;text-align:left;padding:9px 12px;font-weight:600;font-size:13px;color:#374151}
+  td{padding:9px 12px;border-top:1px solid var(--line);vertical-align:top}
+  .killer{background:var(--purple-bg);border:1px solid #ddd0f7;border-radius:8px;
+    padding:13px 17px;margin:11px 0;border-left:3px solid var(--purple)}
+  .killer .q{color:var(--purple)}
+  footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--sub)}
+  .tag{font-size:11px;padding:1px 7px;border-radius:20px;margin-left:6px;font-weight:600}
+  .t-must{background:var(--blue-bg);color:var(--blue)}
+  .t-hot{background:var(--amber-bg);color:var(--amber)}
+  .t-trap{background:var(--purple-bg);color:var(--purple)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>光学 RAG Agent 项目 · 面试八股清单</h1>
+  <div class="meta">为 张万森 整理 · 共 40 题 + 术语速查 + 简历话术 · 2026-09-28 · 配套项目 <code>D:\Desktop\rag-demo</code></div>
+</header>
+
+<div class="tip">
+  <b>怎么背：</b>别死记答案，<b>重点记每题下面那行「▸ 原理」</b>——面试官真正追问的是"为什么"，原理记住，答案自己能推。
+  标注 <span class="tag t-must">必背</span> 是初面高频，<span class="tag t-hot">进阶</span> 是二面深挖，
+  <span class="tag t-trap">陷阱</span> 是"报数字没用、必须讲依据"的题。
+</div>
+
+<h2>〇、术语速查（开口先别露怯）</h2>
+<div class="lead">面试里蹦出这些缩写，你要能当场拆开讲。</div>
+<table>
+  <tr><th>缩写</th><th>英文全称</th><th>中文释义</th></tr>
+  <tr><td>LLM</td><td>Large Language Model</td><td>大语言模型（如 Qwen、DeepSeek、GPT）</td></tr>
+  <tr><td>RAG</td><td>Retrieval-Augmented Generation</td><td>检索增强生成：先查资料再回答</td></tr>
+  <tr><td>Agent</td><td>—</td><td>智能体：能自己决定调用工具的模型</td></tr>
+  <tr><td>Embedding</td><td>—</td><td>嵌入／向量化：把文字变成一串数字</td></tr>
+  <tr><td>Chunk</td><td>—</td><td>文本块：把长文切成的片段</td></tr>
+  <tr><td>Top-K</td><td>Top-K</td><td>检索返回相似度最高的前 K 个片段</td></tr>
+  <tr><td>tool calling</td><td>Tool / Function Calling</td><td>工具调用：让模型自己决定调用某个函数</td></tr>
+  <tr><td>ReAct</td><td>Reasoning + Acting</td><td>「推理—行动」循环，Agent 的基本范式</td></tr>
+  <tr><td>thread_id</td><td>—</td><td>会话线程 ID：区分不同用户/会话的上下文</td></tr>
+  <tr><td>BGE</td><td>BAAI General Embedding</td><td>智源院开源的通用嵌入模型</td></tr>
+  <tr><td>FastAPI</td><td>—</td><td>Python 高性能 Web 框架（自动生成接口文档）</td></tr>
+  <tr><td>Chroma</td><td>—</td><td>轻量级开源向量数据库（可持久化）</td></tr>
+  <tr><td>429</td><td>HTTP 429 Too Many Requests</td><td>请求过多（被限流）</td></tr>
+  <tr><td>Eval</td><td>Evaluation</td><td>评测（用指标量化效果好不好的过程）</td></tr>
+</table>
+
+<h2>一、项目定位与动机</h2>
+<div class="lead">开场题。答不清"为什么做"，后面全白搭。</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q1</span>用一句话讲清你这个项目干了什么。<span class="tag t-must">必背</span></div>
+  <div class="a">我基于 <b>LangChain 的 Agent 框架 + FastAPI + Chroma 向量库</b>，构建了一个<b>光学领域的 RAG 智能问答服务</b>：把偏振测量资料建成本地知识库，模型回答前会<b>自己判断要不要检索</b>，检索到相关内容后基于它作答，并支持多轮会话记忆与 HTTP 接口调用。</div>
+  <div class="why">一句话里必须同时有：<b>做了什么（RAG 问答）</b>＋<b>怎么做的（Agent/向量库/服务化）</b>＋<b>面向谁（光学领域）</b>。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q2</span>这个项目跟你的光学背景什么关系？<span class="tag t-must">必背</span></div>
+  <div class="a">不是硬编出来的：我读研做的是 <b>LCVR（液晶可变相位延迟器）偏振测量</b>，日常要查大量偏振仪、Stokes 参量、Mueller 矩阵、定标资料。我就把自己真正会用的资料做成知识库，让 Agent 帮我问答。<b>领域知识 + Agent 工程能力的组合，是市面上稀缺的</b>。</div>
+  <div class="why">面试官最怕"通用 demo 套壳"。你的护城河是：<b>别人抄得走 RAG 代码，抄不走你对光学数据的理解</b>。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q3</span>为什么从光学转向 AI Agent 方向？</div>
+  <div class="a">不是放弃光学，是<b>做交叉</b>。AI Agent／大模型应用岗的 JD（职位描述）普遍只要求"本科及以上"，真正卡人的是<b>有没有可跑通、可讲透的项目</b>。我把光学领域的真实需求做成 Agent 项目——这就是<b>"垂直领域 + Agent"的错位竞争</b>。</div>
+  <div class="why">把"转行"讲成"叠加"，而不是"抛弃"。</div>
+</div>
+
+<h2>二、RAG 原理（必背区）</h2>
+<div class="lead">这层答不出来，初面就止步了。</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q4</span>什么是 RAG？解决什么问题？<span class="tag t-must">必背</span></div>
+  <div class="a"><b>RAG = 检索增强生成</b>。让大模型回答前先"查资料"，把检索到的相关片段塞进提示词（Prompt）再让它照着答。解决三件事：①<b>幻觉</b>（模型编造）②<b>知识时效</b>（训练截止后的事不知道）③<b>私域知识</b>（个人/企业资料它没见过）。</div>
+  <div class="why">模型参数是"冻结"的，只会回忆不会查证；RAG 等于给它接了块"外挂硬盘"。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q5</span>既然要注入知识，为什么不直接微调（Fine-tuning）？<span class="tag t-must">必背</span></div>
+  <div class="a"><b>RAG 改的是"它知道什么"，微调改的是"它怎么说话"。</b><br>要注入<b>事实知识</b> → 用 RAG：不动权重、资料随时更新、便宜、可溯源到原文。<br>要改<b>风格/格式/领域语气</b> → 用微调：要重训、贵、知识更新还得重训。</div>
+  <div class="why">我的场景是"问答知识库"，不是"让它学会某种语气"，所以 RAG 是最优解，二者还可结合。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q6</span>RAG 的完整流程？<span class="tag t-must">必背</span></div>
+  <div class="a"><b>两阶段。</b><br>· <b>离线建库</b>：加载文档 → 切块（chunk）→ 向量化（embedding）→ 存入向量库<br>· <b>在线问答</b>：问题向量化 → 检索 Top-K 相似片段 → 拼进 Prompt → LLM 生成</div>
+  <div class="why">建库是"一次性重活"，问答是"每次都要跑的轻活"。我项目里分别对应 <code>knowledge_base.py</code> 与 <code>rag_agent.py</code>。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q7</span>什么是 Embedding（嵌入）？<span class="tag t-must">必背</span></div>
+  <div class="a">把文本映射成<b>高维向量</b>（我用的是 <b>512 维</b>）的模型；语义相近的文本，向量距离就近。我项目用的是本地开源的 <code>BAAI/bge-small-zh-v1.5</code>。</div>
+  <div class="why">"离得近＝意思像"<b>不是数学必然，是训练出来的</b>——模型在海量语料上学到"常一起出现的表达该靠近"。换个模型，同一句话的坐标就变了。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q8</span>为什么用向量检索，不用关键词检索？<span class="tag t-must">必背</span></div>
+  <div class="a">关键词检索（<code>BM25</code>）只匹配<b>字面</b>——搜"液晶可变延迟器"命不中只写了"LCVR"的段落；向量检索懂<b>语义</b>，但对专有名词、精确短语容易漏。所以生产环境常用<b>混合检索</b>（两者加权/融合）。</div>
+  <div class="why">一个懂"意思"、一个懂"精确词"，互补。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q9</span>为什么要切块（chunk）？</div>
+  <div class="a">① <b>检索要有粒度</b>：不切，向量库最小单位就是"整篇"，搜什么命中的都是整篇，等于没筛；② 嵌入模型有<b>输入长度上限</b>（BGE 只吃 512 token），超长会被截断；③ 塞进 Prompt 的 token 也有限。</div>
+  <div class="why">切块的本质是"<b>把检索的抓手变细</b>"，不是为了塞给模型方便。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q10</span>余弦相似度 vs 欧氏距离？为什么常用余弦？</div>
+  <div class="a">余弦算两向量<b>夹角</b>（只看方向），欧氏算<b>直线距离</b>（方向+长度都看）。文本向量关心"语义方向"而非"文本长短"，所以余弦更常用。</div>
+  <div class="why">一篇长文和一句短语，只要意思一样方向就该一致；长度差异不该影响判断。向量归一化后两者等价。</div>
+</div>
+
+<h2>三、检索与参数（陷阱区）<span class="tag t-trap">报告数字者死</span></h2>
+<div class="lead">这层是面试官最爱挖的地方——光报"300、k=3"没用，他会问"凭什么是这个数"。</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q11</span>chunk 切多大？为什么是 300？<span class="tag t-trap">陷阱</span></div>
+  <div class="a">我用 <code>chunk_size=300</code> 字符。依据：① 我的知识库是<b>条目式技术资料</b>（一段一个知识点，塞 300 字够装一整个概念）；② 中文技术文本在 300 字左右通常只有一个主题，<b>过大 → 语义被稀释</b>、检索命中整块但只有一句有用；<b>过小 → 上下文断裂</b>，答案拼不全。</div>
+  <div class="why">chunk_size 没有万能值，它是<b>"信息密度"与"语义完整性"的权衡</b>，要拿自己语料试。正确答法是"我按资料特性选了 300，并能说清偏大偏小各自坏在哪"。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q12</span>chunk_overlap 为什么设 50？<span class="tag t-trap">陷阱</span></div>
+  <div class="a">重叠 50 字，是为了<b>避免关键信息正好被切在边界上</b>——上一块结尾和下一块开头有 50 字重叠，保证跨界的句子在两块里都完整出现。</div>
+  <div class="why">重叠是"用一点存储冗余，换检索不漏"的保险。太小会切裂语义，太大则库冗余、匹配重复。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q13</span>top-K 取几条？为什么是 3？<span class="tag t-trap">陷阱</span></div>
+  <div class="a">我取 <code>k=3</code>。依据：知识库小（6 个片段），取 3 条已能覆盖最相关的上下文；<b>k 太大会把不相关的片段也塞进 Prompt，稀释注意力、增加 token 成本、反而降质</b>；k 太小则可能漏掉答案所在片段。</div>
+  <div class="why">k 是"召回率"与"信噪比"的平衡。真正的做法是<b>看评测指标（Recall@k / NDCG）来定 k</b>，而不是拍脑袋——这也是我要补的升级点。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q14</span>嵌入模型为什么选 bge-small-zh-v1.5？</div>
+  <div class="a">三个理由：① <b>中文优化</b>（智源 BGE 的中文效果在同体量里靠前）；② <b>small 版只有约 100MB、512 维</b>，CPU 就能跑，<b>本地免费、无需 API Key</b>；③ 我这是教学/自用规模，不需要上千维的大模型。</div>
+  <div class="why">选型要看"效果 × 成本 × 部署"三角。生产上如果数据量大、精度要求高，会换成大模型或用云端 embedding。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q15</span>检索效果不好，你怎么排查？<span class="tag t-hot">进阶</span></div>
+  <div class="a">按链路逐段定位：① 先看<b>切块</b>——命中片段是不是答所在块（不是 → 调 chunk/overlap）；② 看<b>嵌入</b>——同义不同词能否互相召回（不能 → 换模型）；③ 看 <b>k 与相似度阈值</b>——是不是排到 k 外了；④ 看 <b>query 表述</b>——用户口语化问题要不要做改写（query rewrite）。</div>
+  <div class="why">RAG 的瓶颈<b>多半在检索，不在生成</b>。面试官爱听"先怀疑检索质量"，而不是"怪模型不行"。</div>
+</div>
+
+<h2>四、架构与选型</h2>
+<div class="lead">考你"会不会做工程决策"，不只是"会不会调库"。</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q16</span>为什么要把 Agent 做成 FastAPI 服务，而不是一个脚本？</div>
+  <div class="a">脚本是"跑一次就退"，无法被其他程序调用、无法并发、没有会话。做成 <b>FastAPI 服务</b>后：① 对外暴露标准 HTTP 接口（<code>/chat</code>），前端/其他系统都能调；② 支持<b>多轮会话</b>（按 session_id 隔离）；③ 自动生成交互式接口文档（<code>/docs</code>）；④ 是"工程"而不是"玩具"。</div>
+  <div class="why">面试官靠"有没有服务化"判断你是"会调库"还是"懂工程"。这正是一梯队到二梯队的分水岭。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q17</span>为什么用 Chroma？不用 FAISS？</div>
+  <div class="a">Chroma 的优势是<b>轻量 + 自带持久化 + 与 LangChain 原生集成</b>：几行代码就能建库、<b>落盘后重启不丢</b>。FAISS 更像纯向量索引库，持久化和元数据管理要自己搞，适合大规模性能场景。我这个规模，Chroma 是性价比最优。</div>
+  <div class="why">选型讲"匹配场景"。小项目上 Milvus 是过度设计，大项目用 Chroma 又不够，关键是能说清边界。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q18</span>你把旧版的 <code>InMemoryVectorStore</code> 换成了 Chroma，为什么？</div>
+  <div class="a">旧的 <code>InMemoryVectorStore</code> 是<b>纯内存</b>的——进程一重启，向量库就没了，每次都要重建，根本不能做服务。换成 <b>Chroma 持久化</b>后，建库一次、落盘复用，服务重启秒级可用。</div>
+  <div class="why">这是"能不能做成服务"的前提。持久化是工程化的第一步。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q19</span>为什么不用老的 RAG 链（LCEL），要用 Agent？<span class="tag t-hot">进阶</span></div>
+  <div class="a"><b>老链是无条件检索</b>：你问"你好"，它也会去查一遍库、浪费 token，还常把不相关内容塞进上下文。<b>Agent 把检索变成"工具"，由 LLM 自己决定要不要调</b>——闲聊直接答，专业问题才检索。这更接近真实用户行为。</div>
+  <div class="why">这就是 <b>Agentic RAG（智能体式 RAG）</b> 与传统 RAG 的本质区别：<b>把"固定流水线"换成"模型自主决策"</b>。</div>
+</div>
+
+<h2>五、Agent 机制（重点区）</h2>
+<div class="lead">JD 里出现频率最高、最能拉开差距的一层。</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q20</span><code>create_agent</code> 是什么？和"链（Chain）"什么区别？<span class="tag t-must">必背</span></div>
+  <div class="a"><code>create_agent</code> 是 LangChain v1 的<b>新版 Agent 构造器</b>（取代老教程里的 <code>create_retrieval_chain</code>）。链是<b>写死的流水线</b>（一定按 A→B→C 走）；Agent 是<b>给模型一组工具 + 一个循环</b>，由模型<b>自主决定</b>调用哪个工具、调几次、什么时候结束。</div>
+  <div class="why">链＝"我规定路径"；Agent＝"模型自己选路径"。这就是"会调库"和"会搭 Agent"的分界线。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q21</span>LLM 是怎么"决定要不要调工具"的？<span class="tag t-must">必背</span></div>
+  <div class="a">靠 <b>tool calling（工具调用）</b>：我把检索包成一个带<b>名称和描述</b>的工具传进模型，模型在生成时如果判断需要外部信息，就<b>不直接输出答案，而是输出一个"调用某工具、参数是某查询"的结构化请求</b>；框架执行工具拿到结果，再回喂给模型，模型据此生成最终答案。这是个可循环的过程（ReAct 范式）。</div>
+  <div class="why">关键点：<b>决定权在模型，不在代码</b>。工具的描述（description）写得好不好，直接影响模型判断得准不准。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q22</span>检索是怎么变成"工具"的？</div>
+  <div class="a">用 <code>create_retriever_tool(retriever, name, description)</code> 把检索器包装成工具。我写的描述是"回答偏振仪、LCVR、Stokes 参量、Mueller 矩阵、定标等问题前，必须先调用本工具"——<b>这段描述就是给模型看的"使用说明书"</b>。</div>
+  <div class="why">工具描述越明确触发条件，模型越不会"该查不查"或"乱查"。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q23</span>你怎么知道这一问到底有没有触发检索？</div>
+  <div class="a">我在返回里加了 <code>used_retrieval</code> 字段：判断本轮消息序列里<b>有没有出现 ToolMessage（工具消息）</b>——有就说明模型调过检索工具。实测闲聊"你好"→<code>false</code>，专业问题→<code>true</code>。</div>
+  <div class="why">这是"Agent 自决检索"的<b>可观测证据</b>——能证明给面试官看，不是嘴上说。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q24</span>如果模型不支持 tool calling 怎么办？<span class="tag t-hot">进阶</span></div>
+  <div class="a">两条路：① <b>退化为"固定检索链"</b>——无条件先检索再生成（牺牲效率保功能）；② <b>提示词工程</b>——让模型输出约定格式（如"需要检索：关键词"），代码解析后去检索再二次调用。但最省的还是<b>换一个支持工具调用的模型</b>。</div>
+  <div class="why">面试官想看你知道"Agent 依赖 tool calling 这个前提"。不是所有模型都能当 Agent 的大脑。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q25</span>Agent 判断"不用检索"时，会不会该查不查、导致答错？<span class="tag t-trap">陷阱</span></div>
+  <div class="a">会，这是 Agentic RAG 的固有风险——<b>模型判断错就会漏检、进而幻觉</b>。我的缓解手段：① system_prompt 里<b>明确列出必须检索的问题类型</b>；② 工具描述写清触发条件；③ 答案约束"只能基于检索内容，没有就说未找到"。要更稳的话，可以加"答案自检"或强制检索兜底。</div>
+  <div class="why">诚实承认风险 + 给出缓解方案，比硬说"不会错"加分得多。面试官就是在试你有没有想过边界。</div>
+</div>
+
+<h2>六、工程细节</h2>
+<div class="lead">考"真实上线会踩的坑"，这层最能体现你不是只会跑 demo。</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q26</span>多轮会话记忆怎么做的？会话隔离呢？<span class="tag t-must">必背</span></div>
+  <div class="a">用 <code>InMemorySaver</code> 作为 <b>checkpointer（检查点存储器）</b>。每次调用传入 <code>config={"configurable":{"thread_id": session_id}}</code>，框架按 <b>thread_id 隔离</b>每个会话的历史消息——同一个 session_id 记得上下文，换一个就是全新会话、互不串号。</div>
+  <div class="why">thread_id 就是"会话的身份证"。我把 session_id 校验限制为字母数字和 <code>._:-</code>，防注入。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q27</span><code>InMemorySaver</code> 是内存的，服务重启记忆就没了，生产怎么办？<span class="tag t-hot">进阶</span></div>
+  <div class="a">对，内存版<b>只适合开发/单机</b>。生产要换成<b>持久化 checkpointer</b>：把会话状态存进数据库（如 <b>PostgreSQL / Redis</b>），LangGraph 支持接 <code>PostgresSaver</code> 这类存储后端；多实例部署时还要保证同一会话路由到能读到同一份状态。</div>
+  <div class="why">这题是"你知道当前方案的短板、也知道怎么补"的经典考法。答"不知道"就暴露了没想过生产。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q28</span>并发上来了、模型报 429 限流，你怎么处理？</div>
+  <div class="a">我实测过：AMD 的共享模型有<b>并发上限 16</b>，打满就返回 <code>429 Too Many Requests</code>。我的处理：① 客户端<b>超时放宽到 120s + 自动退避重试</b>；② 服务端<b>捕获 429 并返回友好的 429 提示</b>，而不是崩成 500。</div>
+  <div class="why">生产上还要加<b>队列/令牌桶限流、多模型路由（打满切备用模型）</b>。能说出"限流是共享资源的必然"就到位了。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q29</span>你服务启动慢，怎么优化的？<span class="tag t-hot">进阶</span></div>
+  <div class="a">根因是<b>重型依赖（torch，约 10.5s）被顶层导入</b>，把冷启动拖到 12s。我把这些 import 从模块顶层<b>下沉到函数内部（惰性加载）</b>——端口 0.6s 就可用，首次请求才付加载代价。实测冷启动 <b>12.4s → 0.61s</b>。</div>
+  <div class="why">这题证明你会看"启动耗时构成"，而不是盲加机器。惰性导入是服务化项目的通用优化。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q30</span>你代码里为什么要在主线程预导入 <code>chromadb</code>？<span class="tag t-hot">进阶</span></div>
+  <div class="a">踩过坑：FastAPI 的同步接口跑在<b>线程池</b>里，如果 <code>chromadb</code> 是<b>在工作线程里"首次导入+首次建客户端"</b>，它的 Rust 绑定会初始化失败报错、首次请求 500。我在服务入口顶层（主线程）先 <code>import chromadb</code>，让它<b>在主线程完成首次导入</b>，问题就没了。</div>
+  <div class="why">这是很"真"的工程细节——体现你真跑过、真 debug 过。面试官会眼前一亮。</div>
+</div>
+
+<h2>七、评测（软肋区 · 必须补）</h2>
+<div class="lead">⚠️ 这层是你目前最容易被问倒的地方。哪怕没做完，也要能讲清"该怎么评"。</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q31</span>你怎么证明你这套 RAG 答得准？<span class="tag t-must">必背</span></div>
+  <div class="a">分两层评：① <b>检索质量</b>——Recall@k（该被召回的有多少被召回）、MRR、NDCG；② <b>生成质量</b>——<b>忠实度（Faithfulness，答案是否只依据检索内容）</b>、<b>答案相关性</b>。做法是<b>构造一批"问题 + 标准答案/标注相关片段"的测试集</b>，跑指标量化。</div>
+  <div class="why">"我觉得它答得挺好"是零分答案。面试官要的是<b>可量化、可复现</b>的评测意识（这也是 RAGAS 这类框架在做的事）。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q32</span>Recall@k、MRR、NDCG 分别是什么？<span class="tag t-hot">进阶</span></div>
+  <div class="a"><b>Recall@k</b>：前 k 条里命中了多少比例的相关片段（召回全不全）。<br><b>MRR</b>（Mean Reciprocal Rank）：第一个正确结果排名的倒数的平均（越靠前越高）。<br><b>NDCG</b>（Normalized Discounted Cumulative Gain）：考虑"相关程度分级 + 位置折损"的排序质量指标。</div>
+  <div class="why">面试官常让你"举个例子"。记住 NDCG 的关键：<b>位置越靠后、折损越大；顺序错了分数就掉</b>。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q33</span>你现在做过 eval 吗？</div>
+  <div class="a">诚实说：<b>目前是"人工抽查 + 少量固定问题"的功能验证，还没上系统的指标评测</b>——这是我知道的短板，下一步就打算引入 RAGAS 或自建评测集，把 Recall/NDCG/忠实度跑起来。</div>
+  <div class="why">不会的地方<b>坦率承认 + 给出补课计划</b>，比硬编强。"我知道该怎么做但还没做"是加分项。</div>
+</div>
+
+<h2>八、局限与演进</h2>
+<div class="lead">考你对自己项目的"下一步"有没有想清楚。</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q34</span>你现在知识库才 1 个文档、6 个片段，这算项目吗？</div>
+  <div class="a">目前是<b>最小可运行版本（MVP）</b>——先跑通"服务化 Agent RAG"的骨架，语料是我自用的偏振测量资料。骨架是通用的：<b>换更大的真实语料（论文/实验记录/设备手册）就能直接扩展</b>，不用改架构。</div>
+  <div class="why">把"小"讲成"刻意的 MVP 策略"，并强调架构可扩展。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q35</span>要提升检索质量，你会怎么做？<span class="tag t-hot">进阶</span></div>
+  <div class="a">按性价比排序：① <b>混合检索</b>（BM25 关键词 + 向量，用 RRF 融合）——解决专有名词召回；② <b>重排（Rerank）</b>——先粗召回多、再用 cross-encoder 精排取前几；③ <b>查询改写</b>（query rewrite / HyDE）；④ 调 chunk 与 k（用评测数据定）。</div>
+  <div class="why">能说出 RRF、Rerank、HyDE 这些词，说明你读过生产级方案，不只是入门。</div>
+</div>
+
+<div class="qa">
+  <div class="q"><span class="n">Q36</span>你这个项目的下一步规划？</div>
+  <div class="a">三步：① 语料换成<b>真实光学资料</b>、补齐评测；② 加<b>工具调用层</b>——让 LLM 能调用 Python 脚本处理偏振数据（画电压-延迟曲线、算 Stokes 参数）；③ 用 <b>LangGraph 搭状态机</b>（检索→判断够不够→跑计算→出报告）+ Docker 部署。</div>
+  <div class="why">这正好对应学习清单的二、三梯队和"杀手锏项目"，讲出来显得路线清晰。</div>
+</div>
+
+<h2>九、杀手锏问题（高能区）</h2>
+<div class="lead">这类题没有标准答案，考的是"边界意识"和"诚实"。答好直接拉满印象分。</div>
+
+<div class="killer">
+  <div class="q"><span class="n">K1</span>用户问的内容知识库里根本没有，你怎么防止它瞎编？</div>
+  <div class="a">靠<b>三重约束</b>：① system_prompt 明确"只能基于检索内容，没有就说『知识库中未找到相关答案』，禁止编造"；② 检索没命中相关片段时，让模型如实说不知道；③ 可加<b>相似度阈值</b>——低于阈值就不喂给模型。但坦白讲，<b>约束是概率性的，不能 100% 保证不幻觉</b>。</div>
+  <div class="why">最后那句"不能 100% 保证"是加分项——面试官反感"打包票"的人。</div>
+</div>
+
+<div class="killer">
+  <div class="q"><span class="n">K2</span>你这套和"把资料直接贴进 prompt"有什么本质区别？</div>
+  <div class="a">贴进 prompt 是<b>把全部资料硬塞</b>——受上下文长度限制、贵、且资料一多就装不下、还淹没有效信息。<b>RAG 是"按需检索"</b>：只在回答某问题时动态取最相关的几块，<b>可扩展到海量文档</b>、token 成本可控、且能溯源到出处。</div>
+  <div class="why">区别在"<b>全量硬灌 vs 按需精准取</b>"，以及可扩展性。</div>
+</div>
+
+<div class="killer">
+  <div class="q"><span class="n">K3</span>你说你"构建了 RAG 系统"——到底哪部分是你写的？</div>
+  <div class="a">框架（LangChain/LangGraph/FastAPI/Chroma）是现成的，<b>我负责的是"组装 + 决策 + 排障"</b>：知识库切分策略、检索工具的描述设计、system_prompt 的约束、会话隔离方案、服务化与异常处理（429/超时/启动优化/线程坑）。<b>用不用框架不是关键，能不能说清每个选择的理由才是。</b></div>
+  <div class="why">别硬吹"我造了轮子"。诚实区分"框架能力"与"我的工程决策"，反而更可信。</div>
+</div>
+
+<div class="killer">
+  <div class="q"><span class="n">K4</span>如果让你把这个项目从 0 再讲一遍架构，你会怎么画？</div>
+  <div class="a"><b>四层：</b>①<b>数据层</b>——文档 → 切块 → 本地 BGE 嵌入 → Chroma 落盘；②<b>检索层</b>——把 retriever 包成工具（Agent 自决调用）；③<b>生成层</b>——create_agent（LLM + 工具 + 会话记忆）+ 云端大模型；④<b>服务层</b>——FastAPI 暴露 HTTP 接口 + 异常映射。</div>
+  <div class="why">能一口气画出"数据 / 检索 / 生成 / 服务"四层，说明你脑子里有系统全貌——这是"系统感"，正是 Agent 岗最看重的。</div>
+</div>
+
+<h2>十、简历话术（直接可用）</h2>
+<div class="tip">
+  <b>一句话项目描述：</b>基于 LangChain Agent + FastAPI + Chroma，构建光学领域 RAG 智能问答服务，实现「模型自决检索 + 多轮会话 + HTTP 服务化」。<br><br>
+  <b>三个技术亮点：</b><br>
+  1. <b>Agentic RAG</b>：用 <code>create_agent</code> 把检索封装为工具，由 LLM 自主决定是否检索，避免无效检索与无关上下文污染；<br>
+  2. <b>本地化向量检索</b>：BAAI/bge 中文嵌入 + Chroma 持久化，无 API Key、重启不丢；<br>
+  3. <b>服务工程化</b>：FastAPI 服务化 + 会话隔离（thread_id）+ 429/超时异常处理 + 启动惰性加载优化（12s→0.6s）。<br><br>
+  <b>可量化点（面试时补）：</b>接入评测集后，报 Recall@3 / NDCG / 忠实度 的具体数值。
+</div>
+
+<footer>
+  <p>本清单针对 <code>D:\Desktop\rag-demo</code> 项目实测整理 · 与《RAG面试八股清单》（通用版）、《RAG评测指标详解》配套使用。</p>
+  <p>记忆要点：<b>每题先讲"是什么"，再讲"为什么这么选"，最后主动说"局限与改进"。</b>能走到第三步的人，面试官会记住。</p>
+</footer>
+
+</div>
+</body>
+</html>

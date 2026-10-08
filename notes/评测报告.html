@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LCVR 光学 RAG · 检索层评测报告</title>
+<style>
+  :root{--bg:#f7f8fa;--card:#fff;--ink:#1a1d24;--sub:#5b6472;--line:#e6e9ef;
+    --blue:#2563eb;--blue-bg:#eff4ff;--green:#0d9f6e;--green-bg:#e8f7f0;
+    --amber:#c2760a;--amber-bg:#fdf5e6;--purple:#7c3aed;--purple-bg:#f3edff;--red:#c0392b;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-size:14.5px;line-height:1.7;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:40px 24px 80px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:26px}
+  h1{font-size:25px;margin:0 0 6px;letter-spacing:-.3px}
+  .meta{color:var(--sub);font-size:13px}
+  .tip{background:var(--amber-bg);border:1px solid #f0dcae;border-radius:8px;padding:14px 18px;font-size:14px;margin:18px 0}
+  .tip b{color:var(--amber)}
+  h2{font-size:19px;margin:36px 0 4px;padding-left:11px;border-left:4px solid var(--blue)}
+  .lead{color:var(--sub);font-size:13.5px;margin:4px 0 16px;padding-left:15px}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;background:#fff;
+    border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+  th{background:#f0f2f6;text-align:left;padding:9px 12px;font-weight:600;font-size:13px;color:#374151}
+  td{padding:9px 12px;border-top:1px solid var(--line);vertical-align:top}
+  code{background:#f0f2f5;padding:1px 5px;border-radius:4px;font-size:12.5px;
+    font-family:"SF Mono",Consolas,monospace;color:var(--red)}
+  .big{display:flex;gap:12px;flex-wrap:wrap;margin:14px 0}
+  .kpi{flex:1;min-width:150px;background:#fff;border:1px solid var(--line);border-left:4px solid var(--green);
+    border-radius:8px;padding:12px 15px}
+  .kpi .v{font-size:22px;font-weight:700;color:var(--ink)}
+  .kpi .l{font-size:12.5px;color:var(--sub)}
+  .miss{border-left:3px solid var(--amber)}
+  .ok{color:var(--green);font-weight:600}
+  .bad{color:var(--red);font-weight:600}
+  footer{margin-top:44px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--sub)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>LCVR 光学 RAG · 检索层评测报告</h1>
+  <div class="meta">2026-09-30 · 20 题评测集 · 14 篇真实 LCVR 材料（869 个片段）· 配套 <code>D:\Desktop\rag-demo</code></div>
+</header>
+
+<div class="tip">
+  <b>一句话结论：</b>检索层 <b>Recall@10 = 85%</b>、<b>关键词覆盖 = 100%</b>；瓶颈不在"有没有召回"，而在"<b>排序太靠后</b>"——
+  5 道未命中题的正确答案其实都排在 <b>第 7~16 位</b>。这就是下一步升级（混合检索 / Rerank）的直接依据。
+</div>
+
+<h2>一、核心指标（扫 k = 1 / 3 / 5 / 10）</h2>
+<div class="lead">Recall@k：前 k 条里是否召回期望文档；MRR：首个正确结果的排名倒数；NDCG@k：排序质量。</div>
+<table>
+  <tr><th>k</th><th>Recall@k</th><th>MRR@k</th><th>NDCG@k</th><th>关键词命中@k</th></tr>
+  <tr><td>1</td><td>50.0%</td><td>0.500</td><td>0.500</td><td>70.0%</td></tr>
+  <tr><td>3</td><td>75.0%</td><td>0.608</td><td>0.645</td><td>95.0%</td></tr>
+  <tr><td>5</td><td>75.0%</td><td>0.608</td><td>0.645</td><td>95.0%</td></tr>
+  <tr><td><b>10</b></td><td><b>85.0%</b></td><td><b>0.623</b></td><td><b>0.678</b></td><td><b>100.0%</b></td></tr>
+</table>
+
+<div class="big">
+  <div class="kpi"><div class="v">50% → 85%</div><div class="l">Recall@1 → Recall@10</div></div>
+  <div class="kpi"><div class="v">100%</div><div class="l">关键词覆盖（k=10）</div></div>
+  <div class="kpi"><div class="v">869</div><div class="l">真实语料片段数（原为 6）</div></div>
+</div>
+
+<h2>二、未命中诊断（关键）</h2>
+<div class="lead">5 道未命中题，其期望文档在 top-20 中的实际排名——说明"召回到了但排太后"。</div>
+<table>
+  <tr><th>题号</th><th>问题（节选）</th><th>期望文档</th><th>top-20 排名</th><th>判定</th></tr>
+  <tr class="miss"><td>Q7</td><td>温度漂移用什么模型描述？</td><td>研究本体详细报告</td><td>7</td><td class="bad">排后（k=8 可救）</td></tr>
+  <tr class="miss"><td>Q12</td><td>蒙卡样本数与种子是多少？</td><td>仿真实验总纲</td><td>7</td><td class="bad">排后（k=8 可救）</td></tr>
+  <tr class="miss"><td>Q14</td><td>CN 与 BCPN 是什么关系？</td><td>仿真实验总纲</td><td>15</td><td class="bad">排后</td></tr>
+  <tr class="miss"><td>Q11</td><td>评估网格用多少波长/温度点？</td><td>仿真实验总纲</td><td>16</td><td class="bad">排后</td></tr>
+  <tr class="miss"><td>Q17</td><td>容差分析考虑哪些误差源？</td><td>补充实验_H档</td><td>16</td><td class="bad">排后</td></tr>
+</table>
+
+<h2>三、原因分析</h2>
+<div class="lead">为什么"召回到了却排太后"？</div>
+<table>
+  <tr><th>因素</th><th>说明</th></tr>
+  <tr><td><b>单一向量检索排序弱</b></td><td>纯语义相似度对"带具体数字/表格行"的问题（Q11 "36×11"、Q12 "2000/999"）不敏感——数字与符号被稀释。</td></tr>
+  <tr><td><b>大文档块稀释</b></td><td>未命中集中在《仿真实验总纲》《研究本体详细报告》两篇长文档；固定 <code>chunk=300</code> 下，关键表格所在块与问题语义匹配度偏低。</td></tr>
+  <tr><td><b>k 是"够得着"但"排不进"</b></td><td>k 从 5 加到 10，Recall 75%→85%：证明瓶颈是<b>排序深度</b>，不是召回缺失。</td></tr>
+</table>
+
+<h2>四、结论与下一步（直接对应升级路线）</h2>
+<table>
+  <tr><th>优先级</th><th>改进手段</th><th>预期</th></tr>
+  <tr><td>P3-1</td><td><b>混合检索</b>：BM25（关键词，命中"36×11/2000/999"这类精确串）+ 向量，用 <b>RRF</b> 融合</td><td>专有名词/数字题召回↑</td></tr>
+  <tr><td>P3-2</td><td><b>重排 Rerank</b>：粗召回 top-20 → cross-encoder 精排取前 3~5</td><td>把 rank 7~16 的正确块顶上来</td></tr>
+  <tr><td>P3-3</td><td><b>查询改写</b> / 调 <code>chunk_size</code>（表格类文档单独切法）</td><td>缓解大文档块稀释</td></tr>
+  <tr><td>P3-4</td><td>把 <b>k 定为 10</b>（当前最优），或"召回 10 + 精排 3"</td><td>Recall 85% 直接可用</td></tr>
+</table>
+
+<div class="tip">
+  <b>面试话术：</b>"我做了检索层评测：Recall@1 50%、Recall@10 85%、关键词覆盖 100%。
+  诊断发现瓶颈是<b>排序深度</b>而非召回缺失——未命中题的答案都排在第 7~16 位。
+  所以我下一步上<b>混合检索 + Rerank</b>，而不是盲目调大 k。"
+</div>
+
+<h2>五、复现方式</h2>
+<div class="lead">一条命令重跑：</div>
+<table>
+  <tr><th>步骤</th><th>命令</th></tr>
+  <tr><td>建库 + 评测</td><td><code>cd app &amp;&amp; ../.venv/Scripts/python.exe eval_rag.py</code></td></tr>
+  <tr><td>评测集</td><td><code>data/eval_set.json</code>（20 题：问题 + 期望文档 + 关键词）</td></tr>
+  <tr><td>语料</td><td><code>data/docs/</code>（14 篇：实验报告 11 + 论文 2 + 汇总表 1）</td></tr>
+</table>
+
+<footer>
+  <p>本报告由 <code>app/eval_rag.py</code> 自动产出 · 指标不含 API Key 成本（纯本地嵌入）。</p>
+  <p>⚠️ 语料为未发表研究材料，<code>data/docs/</code> 已在 <code>.gitignore</code> 中排除，请勿提交到公开仓库。</p>
+</footer>
+
+</div>
+</body>
+</html>

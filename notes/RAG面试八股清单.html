@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="1qazky7dfW1FpG4W8fiTad">
+<head data-page-node-id="pzAB21TiQhwU6P12FNBG2H">
+<meta charset="UTF-8" data-page-node-id="m8oQtTwsGDj1ki7tdAJAEB">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="C2VHfGL6QMMKSHtPEgGd7R">
+<title>RAG / 大模型应用 · 面试八股清单</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#fff; --ink:#1a1d24; --sub:#5b6472; --line:#e6e9ef;
+    --blue:#2563eb; --blue-bg:#eff4ff; --green:#0d9f6e; --green-bg:#e8f7f0;
+    --amber:#c2760a; --amber-bg:#fdf5e6; --purple:#7c3aed; --purple-bg:#f3edff;
+    --red:#c0392b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-size:14.5px;line-height:1.7;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:40px 24px 80px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:26px}
+  h1{font-size:25px;margin:0 0 6px;letter-spacing:-.3px}
+  .meta{color:var(--sub);font-size:13px}
+  .tip{background:var(--amber-bg);border:1px solid #f0dcae;border-radius:8px;padding:14px 18px;
+    font-size:14px;margin:18px 0}
+  .tip b{color:var(--amber)}
+  h2{font-size:19px;margin:38px 0 4px;padding-left:11px;border-left:4px solid var(--blue)}
+  .lead{color:var(--sub);font-size:13.5px;margin:4px 0 16px;padding-left:15px}
+  .qa{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--blue);
+    border-radius:8px;padding:13px 17px;margin:11px 0;box-shadow:0 1px 2px rgba(16,24,40,.03)}
+  .q{font-weight:600;color:var(--ink);margin-bottom:5px;font-size:15px}
+  .q .n{color:var(--blue);margin-right:6px;font-family:"SF Mono",Consolas,monospace;font-size:13px}
+  .a{color:#2f3743;font-size:14px}
+  .a b{color:var(--ink)}
+  .why{color:var(--green);font-size:13px;margin-top:5px;padding-left:2px}
+  .why::before{content:"▸ 原理：";font-weight:600}
+  code{background:#f0f2f5;padding:1px 5px;border-radius:4px;font-size:12.5px;
+    font-family:"SF Mono",Consolas,monospace;color:var(--red)}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;background:#fff;
+    border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+  th{background:#f0f2f6;text-align:left;padding:9px 12px;font-weight:600;font-size:13px;color:#374151}
+  td{padding:9px 12px;border-top:1px solid var(--line);vertical-align:top}
+  .killer{background:var(--purple-bg);border:1px solid #ddd0f7;border-radius:8px;
+    padding:13px 17px;margin:11px 0;border-left:3px solid var(--purple)}
+  .killer .q{color:var(--purple)}
+  footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--sub)}
+  .tag{font-size:11px;padding:1px 7px;border-radius:20px;margin-left:6px;font-weight:600}
+  .t-must{background:var(--blue-bg);color:var(--blue)}
+  .t-hot{background:var(--amber-bg);color:var(--amber)}
+</style>
+</head>
+<body data-page-node-id="Qf5tIk3kkuxjcSwLM1boVE">
+<div class="wrap" data-page-node-id="0m1AqirwmH9xP0rwmB6E4s">
+
+<header data-page-node-id="M3uq2fFiL8FnDVmrzSwgT1">
+  <h1 data-page-node-id="gFUDVqoTsZVFepDCUzv8CP">RAG / 大模型应用 · 面试八股清单</h1>
+  <div class="meta" data-page-node-id="AlyeX4TWvCWAJiNXxLPGBa">为 张万森 整理 · 共 35 题 · 2026-09-27 · 配套项目 <code data-page-node-id="6QdpgbBhOOW9bvDcgoeWVY">D:\Desktop\rag-demo</code></div>
+</header>
+
+<div class="tip" data-page-node-id="ysoHIanA8qGOYpAsJw0Tws">
+  <b data-page-node-id="RdtZT0R92FghTteJiCstan">怎么背：</b>别死记答案，<b data-page-node-id="8oCnaBXg85u71IobH4YPPu">重点记每道题下面那行「▸ 原理」</b>。
+  面试官真正会追问的是"为什么"，你把原理记住，答案自己能推出来。
+  标注 <span class="tag t-must" data-page-node-id="LRxLHy6MFZYJ2uxcsoCN8g">必背</span> 的是初面高频，<span class="tag t-hot" data-page-node-id="3WJTqOOkqq0wMZIuMtz5ir">进阶</span> 的是二面深挖。
+</div>
+
+<h2 data-page-node-id="iab8yKoOZv43LoYtlaLLg1">一、基础概念（必背区）</h2>
+<div class="lead" data-page-node-id="yZSRxzRyiIqiyGKhFQHzKD">这 10 题答不出来，基本就止步初面了。</div>
+
+<div class="qa" data-page-node-id="T8jrDlGMQwYmJbgjElnK0A">
+  <div class="q" data-page-node-id="N3pO2ToHLy9fbTkh5fGoo6"><span class="n" data-page-node-id="WHLfIGOxoPQe2JUJb8urCH">Q1</span>什么是 RAG？解决什么问题？<span class="tag t-must" data-page-node-id="anQKPF2P3xGvxTmNnGCp5m">必背</span></div>
+  <div class="a" data-page-node-id="E1rZWV2xnwC3bePhHiOtS2"><b data-page-node-id="r33EBvnVJpR2Xcv5icuCcy">RAG = Retrieval-Augmented Generation，检索增强生成。</b>让大模型在回答前先"查资料"，把检索到的相关片段塞进提示词，再让模型照着答。解决三大问题：①<b data-page-node-id="hWO8Bgh8jC7hy1APT7ofkZ">幻觉</b>（模型编造）②<b data-page-node-id="XCkn8I8cTnYbXQX6ICY5g2">知识时效</b>（训练截止后的事不知道）③<b data-page-node-id="zazfVHXrGJyhwuSEmjnN2z">私域知识</b>（企业内部/个人资料模型没见过）。</div>
+  <div class="why" data-page-node-id="BcopOrlqfWthNsaG5HfQ6J">大模型的参数是"冻结"的，它只会"回忆"，不会"查证"。RAG 给它接了个"外挂硬盘"。</div>
+</div>
+
+<div class="qa" data-page-node-id="EIjeSHrPTrxJyXvxksHY2f">
+  <div class="q" data-page-node-id="5Q6Mr6b7Y0n9thCGCykUEh"><span class="n" data-page-node-id="jhJNy80XEaPhUgIOsHFY8v">Q2</span>RAG 和微调（Fine-tuning）怎么选？<span class="tag t-must" data-page-node-id="92giu7x0m3uoYczPYodBFG">必背</span></div>
+  <div class="a" data-page-node-id="SGbiTq1bMvcVXjgbtCRhWo"><b data-page-node-id="7QhtbOBKflAoIeeSF52Mmm">RAG</b>：外挂知识库，不动模型权重，随时更新，便宜，适合"<b data-page-node-id="YSiveoeBZ3MGAeDU7clW2K">知识型问答</b>"。<br data-page-node-id="DYMnSfAHRMjpCFgQRBTUox">
+  <b data-page-node-id="Gw9iCHDbhMD6nIkRN5DdmP">微调</b>：改模型参数，改变模型的"<b data-page-node-id="11EihrWS1602s3cuZvf78A">行为/风格/格式</b>"，数据变了要重训，贵。<br data-page-node-id="2drPRs2nbWhSvF8Ba3skY6">
+  选择：要注入<b data-page-node-id="gPvHFCQURnHIT7KHEObUNh">事实知识</b> → RAG；要改<b data-page-node-id="6EVA3lJvzmKUCHmEItlSgq">说话风格/输出格式/领域语气</b> → 微调。二者可结合。</div>
+  <div class="why" data-page-node-id="BCxJj99vBfT3SbKAkIhnIk">RAG 改的是"它知道什么"，微调改的是"它怎么说话"。</div>
+</div>
+
+<div class="qa" data-page-node-id="ROe8lIhP8XdlnGmb62SOVQ">
+  <div class="q" data-page-node-id="zcsIlJlb9YcsvJ6lr55M54"><span class="n" data-page-node-id="2a6qrEVs9zQrJuJgJ7aTAc">Q3</span>RAG 的完整流程？<span class="tag t-must" data-page-node-id="xR9Gy2K5EDZXJHjCnWTEcu">必背</span></div>
+  <div class="a" data-page-node-id="o7yPkTcXM6LjnlTC5vE9kR"><b data-page-node-id="vG82PuEtxAPskk4xgSq7pD">两阶段。</b><br data-page-node-id="oMA3STkOMxjpgAQYHqqYtL">
+  · 离线建库：加载文档 → 切块 → 向量化 → 存入向量库<br data-page-node-id="s7Zr35xMZ5pG0XN6f6takN">
+  · 在线问答：问题向量化 → 检索 Top-K 相似片段 → 拼进 Prompt → LLM 生成</div>
+  <div class="why" data-page-node-id="33UbIJUpfoOzoBzWKosBTl">建库是"一次性的重活"，问答是"每次都要跑的轻活"。</div>
+</div>
+
+<div class="qa" data-page-node-id="xtRhWlAStY5xqh9YSvdhL8">
+  <div class="q" data-page-node-id="M7pThdi2t8RpxvLhEHbCgO"><span class="n" data-page-node-id="t5BmyLoPmAbaEB1w6086H5">Q4</span>什么是 Embedding（嵌入）？<span class="tag t-must" data-page-node-id="NzlJLeSxGF32F1vCVJGYgB">必背</span></div>
+  <div class="a" data-page-node-id="h8OOlHWAlUtO6AbAvZa3VB">把文本映射成<b data-page-node-id="BcXZc6XHJAlFNGtCr7J6fW">高维向量</b>（如 512/768/1024 维）的模型，语义相近的文本向量距离近。常见：<code data-page-node-id="6nVnIM4lnRJDWgrwsUGd9E">BGE</code>、<code data-page-node-id="VDI3mWTvPQrKGzSvRGeWMN">M3E</code>、<code data-page-node-id="zOZKL9L19Aj5vId7vbuxjF">text-embedding-3</code>、<code data-page-node-id="xt89wlOXubMxeeMTnmgolM">nomic-embed</code>。</div>
+  <div class="why" data-page-node-id="CFwVveykRhKGtDk2U2lDru">"离得近=意思像"<b data-page-node-id="uHHlOcjX5D1HLmBqeBscVY">不是数学必然，是训练出来的</b>——模型在海量语料上学到"常一起出现的表达该靠近"。换个模型，同一句话坐标就变了。</div>
+</div>
+
+<div class="qa" data-page-node-id="dAFW33sWDrjZlFeTkfvnk4">
+  <div class="q" data-page-node-id="wHpwq3mxh9pg6eRCrqKA8V"><span class="n" data-page-node-id="oAFYC2MUztsBIhaoNJ4H0U">Q5</span>为什么用向量检索，不用关键词检索？<span class="tag t-must" data-page-node-id="JJPFV7agKu9iGkOV6U1Mq1">必背</span></div>
+  <div class="a" data-page-node-id="P794ROP2AhChKOe1lqANid">关键词检索（<code data-page-node-id="P9pMbQbUSKrgNDjkpYMuc6">BM25</code>）只匹配<b data-page-node-id="m5ONBoUPC5synG9gzNpOrV">字面</b>——搜"列表推导式"命不中"list comprehension"；向量检索懂<b data-page-node-id="YrIz58s6azzPx2dLxzGgPu">语义</b>，但对专有名词、精确短语反而容易漏。所以生产环境常用<b data-page-node-id="vgWI1Msw73PYcslfnBZigL">混合检索</b>。</div>
+  <div class="why" data-page-node-id="Q4BfxgMUa1cBL6A7IkDyk6">两者互补：一个懂"意思"，一个懂"精确词"。</div>
+</div>
+
+<div class="qa" data-page-node-id="hhx44kFH8L6Fcc9G8iSCRp">
+  <div class="q" data-page-node-id="yuxm9kXVo3x6jn9Npxm1qR"><span class="n" data-page-node-id="nDoyneVNeiDPjiAq8TOoes">Q6</span>什么是向量数据库？有哪些？</div>
+  <div class="a" data-page-node-id="LScsgowvnFP9MAL0OUPJmg">专门存储和检索向量的数据库，支持<b data-page-node-id="1dT9WkC4kCBOW1Zce0edDw">近似最近邻（ANN）</b>搜索。常见：<code data-page-node-id="o0IUi5zBNnQl4VfASbH9FN">Chroma</code>、<code data-page-node-id="OrHFaRvz4ieT5DQPN0ZbDJ">FAISS</code>、<code data-page-node-id="MsnOXNRlrTsvKHH0uAowg1">Milvus</code>、<code data-page-node-id="94BG1sdiGicXQK6ZcpCDla">Qdrant</code>、<code data-page-node-id="n9FEgFP6eiwo1YlIpt2tBo">pgvector</code>、<code data-page-node-id="YMgU8mzUTXx0zzBReAsLbd">Pinecone</code>。选型：小项目用 Chroma/FAISS，大规模用 Milvus/Qdrant。</div>
+  <div class="why" data-page-node-id="AkMovRI5RvgIoBtHcbdoyH">几百万条向量要毫秒级找到最近的 Top-K，逐个比对太慢，必须用 ANN 索引提速。</div>
+</div>
+
+<div class="qa" data-page-node-id="rtKxlHzeEUBmgkmvED6hxk">
+  <div class="q" data-page-node-id="PRjG6eyWeDV53yASy0k8dN"><span class="n" data-page-node-id="EFoemw0PZumCXtz8eFRiZ5">Q7</span>余弦相似度 vs 欧氏距离？为什么常用余弦？<span class="tag t-must" data-page-node-id="YoqduS3jY9RRSqOEnF5Huw">必背</span></div>
+  <div class="a" data-page-node-id="XpXHHBgQqSc72komMWe2sY">余弦算两向量<b data-page-node-id="RTACAB65UCqtNWln4jVvz9">夹角</b>（只看方向，不看长度）；欧氏算<b data-page-node-id="ZLJDvPCwzZe86Y2L01L5H7">直线距离</b>（方向和长度都看）。文本向量关心"语义方向"而非"文本长短"，所以余弦更常用。</div>
+  <div class="why" data-page-node-id="MI449htobjDh6ZZrYGxXKQ">一篇长文和一句短语，只要意思一样，方向就该一致——长度差异不该影响判断。归一化后两者等价。</div>
+</div>
+
+<div class="qa" data-page-node-id="Rv4G8kTnbdTB3gEE5zvweG">
+  <div class="q" data-page-node-id="Re7gvB5eRkvH2CTPOMAcgS"><span class="n" data-page-node-id="AUnHrCG7lWopNDGfnxjFCd">Q8</span>为什么要切块（chunk）？</div>
+  <div class="a" data-page-node-id="9GEnJowV4TwV0UDq39cYgk">①<b data-page-node-id="ltigRf9fDP56G3KmxFi89I">检索需要粒度</b>：不切，向量库最小单位就是"整篇"，搜什么命中的都是整篇，等于没筛<br data-page-node-id="sITUHRJJNG4CmzeJRwcYuS">
+  ②嵌入模型有<b data-page-node-id="qIXfjZg4juUNklSkQmbasF">输入长度上限</b>（如 BGE 只吃 512 字），超长会被截断<br data-page-node-id="se4GITBvu6LIrVfGZLLj5Y">
+  ③塞进 Prompt 的 <b data-page-node-id="QXSI81C6GyAafeQv5IFVbX">token 有限</b>。</div>
+  <div class="why" data-page-node-id="zuKSgRFUDu9QzB1rl29kGV">切块的本质是"把检索的抓手变细"，不是为了塞给模型方便。</div>
+</div>
+
+<div class="qa" data-page-node-id="Hb134GUCQz9ym0QiwP7xWv">
+  <div class="q" data-page-node-id="c8LAv6lqFvVk2S014Lz8tT"><span class="n" data-page-node-id="vlCundOtNFpLQEoHwleGTI">Q9</span>chunk_size 和 overlap 怎么定？<span class="tag t-hot" data-page-node-id="ntLeCT1d5RGQrPc2KHhZkU">进阶</span></div>
+  <div class="a" data-page-node-id="mIKTNUvDbLIf2OXgZN528A"><code data-page-node-id="p9n0upKYFB4TwvIIXLepuE">chunk_size</code> 通常 200–1000 字符；<code data-page-node-id="UqfHtCRqM1vd0FpDjxxLn3">overlap</code> 取它的 10–20%。起步用 500/50，用真实问题测命中率再调。</div>
+  <div class="why" data-page-node-id="gtysAEfiXdA0fxOdPQyDg2"><b data-page-node-id="jhBYMVS9n7nnhvSbJ75Dol">钟摆效应</b>：块太大 → 混了多主题，向量被"平均"掉，语义不聚焦；块太小 → 只有半句话，答不全。<code data-page-node-id="uSm7dABlH0lxh6VvdySp4t">overlap</code> 是<b data-page-node-id="EcVjAQSSPt1fcEthY4Cyfo">防止关键句正好被切在边界</b>上。</div>
+</div>
+
+<div class="qa" data-page-node-id="f6eqkmwF83OT1vEBm5xmH7">
+  <div class="q" data-page-node-id="PWXVOAmRRJ8lu2iX5go3ER"><span class="n" data-page-node-id="rgN2Np24R9UmvBNnTv4Nah">Q10</span>Top-K 是什么？怎么定？</div>
+  <div class="a" data-page-node-id="YGHTI94Ceu0rFjcGneQOsj">检索返回最相似的 <b data-page-node-id="JAQe4vMQudGgSCUyOXjAco">K</b> 个片段。K 太小 → 漏信息；K 太大 → 噪音多、占上下文、成本高。通常 3–5；配合重排则先取 20 再筛到 5。</div>
+  <div class="why" data-page-node-id="4p3WXB6sNXQpwQwoLZvX8T">K 是"召回率"与"精确率"的权衡旋钮。</div>
+</div>
+
+<h2 data-page-node-id="GXa6vAGaEklwgMwYaaW5L6">二、进阶架构（二面深挖区）</h2>
+<div class="lead" data-page-node-id="sVerqJG45YqGn7ZEzVVNJ2">这些是让你从"会用"到"懂工程"的分水岭。</div>
+
+<div class="qa" data-page-node-id="2yqrrWOqFGmRjO3DvysBdS">
+  <div class="q" data-page-node-id="lXHtL95C85PhJ5leNYZ2e9"><span class="n" data-page-node-id="uRf8UUvdeC45otCYbqduWf">Q11</span>什么是混合检索（Hybrid Search）？<span class="tag t-hot" data-page-node-id="kAu1UaGP8rpSpBiUe209Bn">进阶</span></div>
+  <div class="a" data-page-node-id="laxlwCnXiYWbjl9xlBfvnm">同时用<b data-page-node-id="D5J5Fbvf1e73JBRUzW15Up">稀疏检索</b>（<code data-page-node-id="8qWdqPVOwIHuLQNjeWVd4g">BM25</code>，关键词）+ <b data-page-node-id="ncn00hZGTwSDCMh9jQBaEF">稠密检索</b>（向量，语义），两路结果融合排序。</div>
+  <div class="why" data-page-node-id="CBV4Wc0v74e6aRO9YB3bFY">单路总有盲区，混合 = 既懂语义又保住精确匹配。</div>
+</div>
+
+<div class="qa" data-page-node-id="mwgxRDKQyklvyDtVa0l0U2">
+  <div class="q" data-page-node-id="Ke4vAVAZXCryUjCLaI8qK3"><span class="n" data-page-node-id="Kf4zr0KKtexJpoD4tWiNzE">Q12</span>RRF 是什么？<span class="tag t-hot" data-page-node-id="f1wDNiSFbpG4g0V8Ljo8lH">进阶</span></div>
+  <div class="a" data-page-node-id="gKvBz4F5kydU6rfGzScvC6"><b data-page-node-id="NiEtVV3AgGO1FD5hkMQuB8">RRF = Reciprocal Rank Fusion，倒数排名融合。</b>把多路检索的排名用 <code data-page-node-id="jnlWb5uA0ThsFM6c0qDrAn">1/(k+rank)</code> 打分再相加，融合成最终排序。</div>
+  <div class="why" data-page-node-id="bqhGzLgbquRAd8MWVHeN85">不同来源的"分数"不可比（一个 0.9、一个 12.3），但"排名"可比。用排名融合，免去归一化，简单又鲁棒。</div>
+</div>
+
+<div class="qa" data-page-node-id="zLb8aDCWTshNZgXTSZhD1Y">
+  <div class="q" data-page-node-id="JwHDB6PO1rLljnujg3zAy8"><span class="n" data-page-node-id="DIa4kMFdtai8wjFkw4SgzC">Q13</span>什么是 Rerank（重排）？<span class="tag t-hot" data-page-node-id="lTOEV2XokboBaBpySX3E5g">进阶</span></div>
+  <div class="a" data-page-node-id="7z2dFCE6Q8BC0PVsIqRREs"><b data-page-node-id="bYa8v0uBz808eZUJbV4vhm">粗排</b>（向量检索）先召回一批候选，再用 <code data-page-node-id="OocUZXC0mC2RXcPBR4SAxP">Cross-Encoder</code> <b data-page-node-id="7i3V0qRSFQAViiZHZkOpB5">精排</b>。它把 query 和文档<b data-page-node-id="WEHw7kDzTIcy7zwjbusg1U">一起</b>输入模型打分，比向量点积更准，但更慢。典型：召回 20–50 → 重排取 5。</div>
+  <div class="why" data-page-node-id="9cBWoJ7CinAYCDzJbVoEGl">向量检索是"各算各的"（双塔，快但粗），Cross-Encoder 是"一起看"（慢但准）。分工合作。</div>
+</div>
+
+<div class="qa" data-page-node-id="NjjK0pxVbIIWfEuyjonvw7">
+  <div class="q" data-page-node-id="zVm1iezqF7IH5OD1xd1rEv"><span class="n" data-page-node-id="Cd7cu8H4s2EzNXFkP8ttgY">Q14</span>什么是查询改写（Query Rewrite）/ HyDE？</div>
+  <div class="a" data-page-node-id="YZ7utn8hf9nQ4xhimfinVD">用户问题口语化、含糊，先让 LLM 改写成更适合检索的形式。<code data-page-node-id="276USRGNPH3HJwK8W3gD7P">HyDE</code>：先让模型生成一个"假设答案"，用这个答案去检索（答案和文档的表述风格更接近）。</div>
+  <div class="why" data-page-node-id="RVFRRQKioFNYJG29c2tM6x">用户问法和文档写法常有"表述鸿沟"，先"翻译"一下，命中率更高。</div>
+</div>
+
+<div class="qa" data-page-node-id="dsPSgm6n75FZW1C34oCRmh">
+  <div class="q" data-page-node-id="ubdDoMbBmLpcvtNzvy48yj"><span class="n" data-page-node-id="f48U4cMKjevWKEcKat90iU">Q15</span>什么是父子文档（小块检索、大块返回）？</div>
+  <div class="a" data-page-node-id="YQ8i9VEDK8sDcfRHGUEyUh">用<b data-page-node-id="COdKl3oNiHLHDlWFd8GSuB">小块做检索</b>（精度高），命中的小块返回它所属的<b data-page-node-id="hvUvnxIsH2Dx1ulsbkuKfX">大块</b>（上下文完整）。</div>
+  <div class="why" data-page-node-id="FePgpRmqKjnIDBqAKWCkys">兼顾"检索准"和"上下文全"，解决切块的两难。</div>
+</div>
+
+<div class="qa" data-page-node-id="sTNN79x2DGRIYbaZ6zpg8y">
+  <div class="q" data-page-node-id="gQaGK2GTmZ7nTyrDhDYDjJ"><span class="n" data-page-node-id="dxaowuhTPRMBzM7UlN7GBn">Q16</span>什么是元数据过滤？</div>
+  <div class="a" data-page-node-id="HAMa1ydICIyRmwR3XEFXpb">给文档块附带<b data-page-node-id="kaPSYLrmwEmGuUkxJj73IM">元数据</b>（来源、时间、章节、权限），检索时先按元数据<b data-page-node-id="hWeRBEhn4ihlIIFErmNdiV">过滤</b>再做向量检索。</div>
+  <div class="why" data-page-node-id="7808k4WxWRsWA9UTYmYH0r">能把"搜得准"变成"搜得对"——比如只搜某年份、某部门的数据。</div>
+</div>
+
+<div class="qa" data-page-node-id="lHqAPmTsDfxlGa2BFteNkl">
+  <div class="q" data-page-node-id="D2w7VlM18PIv3DaoRmdRZT"><span class="n" data-page-node-id="SDPcm3qhgtwKR9CeU5apJH">Q17</span>什么是 Agentic RAG？<span class="tag t-hot" data-page-node-id="ySxupKPdmTjVu95vMCHCpe">进阶</span></div>
+  <div class="a" data-page-node-id="ubRsmY50RknTH0UucyWHGo">把 RAG 做成 <b data-page-node-id="kZW2WFVTB8ALPOOQWH17Cp">Agent</b>：自己判断"要不要检索""检索够不够""要不要再检索一次"（多跳）。用 <code data-page-node-id="X2VucAYz9tLRWDb8jlgz4z">LangGraph</code> 状态机编排：<code data-page-node-id="O0AMNKEtBa4AagEMZoukxV">retrieve → grade_documents → rewrite_query → 再检索</code>。</div>
+  <div class="why" data-page-node-id="snWAE4ftX44RijEMtcHOyy">普通 RAG 是"一条直线"，Agentic RAG 是"带判断的循环"——检索质量差时能自我纠正。</div>
+</div>
+
+<div class="qa" data-page-node-id="L8wQq50Eq26APj0aCPRiNk">
+  <div class="q" data-page-node-id="xuvxHUKbyeo811bcD8aF8h"><span class="n" data-page-node-id="4fzpwK3jovAGikneNRV5Rd">Q18</span>RAG 怎么评测（Eval）？<span class="tag t-hot" data-page-node-id="S7DmpDBqZWMsoFqHfJ8vCt">进阶</span></div>
+  <div class="a" data-page-node-id="PnHHwS9CEtBAM47357Z8Bz"><b data-page-node-id="A2XkQlyC0h1nldxItDCasU">检索质量</b>：Recall@K、MRR（平均倒数排名）、Hit Rate。<br data-page-node-id="7kIH311jmzMy9k33XaUjIK">
+  <b data-page-node-id="e7oFplUcsoqnRTxFk79nME">生成质量</b>：Faithfulness（忠实度，答案是否都来自资料）、Answer Relevance（相关性）、Context Precision/Recall。<br data-page-node-id="ySosFF6OdwAPb8g2Ko5xYt">
+  工具：<code data-page-node-id="eHbPmgqJDNp1tHGKpoeUmQ">RAGAS</code>、<code data-page-node-id="El3wzjEp2z75NAmLHJ7C7U">TruLens</code>、<code data-page-node-id="LnZmNnFqB57yULgZivNbpM">LangSmith</code>。</div>
+  <div class="why" data-page-node-id="bkmElFfXIZ3AAHR6oGwOlf">分两段评：检索错了 → 生成再强也白搭；检索对了但答歪 → 是 Prompt 或模型问题。</div>
+</div>
+
+<div class="qa" data-page-node-id="QgtE4hgcnuo4w8ZIHLNbn9">
+  <div class="q" data-page-node-id="BMup43PfijugVZi0xpjXDx"><span class="n" data-page-node-id="l3C1YKP5hzHzYLYeWIH7q9">Q19</span>怎么防幻觉？</div>
+  <div class="a" data-page-node-id="2uFgQRmOl6XCbIQzjiPQTD">①Prompt 强约束"仅据上下文，无则答不知道" ②提高检索质量（重排/混合）③<b data-page-node-id="MGrtchoaio3DDKjTdCzaF4">返回引用来源</b> ④用 Faithfulness 指标评测 ⑤置信度低时转人工。</div>
+  <div class="why" data-page-node-id="PPFa7WnMzBDp2l9w0h4F56">大模型的天性是"编"。"禁止编造"这句 Prompt 不是摆设，是<b data-page-node-id="2zkhahJpWb7VoDOjQbBcfb">紧箍咒</b>。</div>
+</div>
+
+<div class="qa" data-page-node-id="VLPJyyFM5841K5gAzgKFzO">
+  <div class="q" data-page-node-id="PnyQ9Sj6CpqXpssJALPVPI"><span class="n" data-page-node-id="9QAMex2jPj4KOFqwWnP35I">Q20</span>RAG 效果差，怎么排查？<span class="tag t-hot" data-page-node-id="A2CMnHS8eWjbrM2oHlY3sq">进阶</span></div>
+  <div class="a" data-page-node-id="EmqcPMlS5CBzy4zgIE95Dh"><b data-page-node-id="yQIY3YdPqElCiyy3NjMyVH">分两段查。</b><br data-page-node-id="QCqAg5sXEBzXcazNsRelGi">
+  · 检索段：命中率低？→ 调 chunk / 加混合检索 / 加重排 / 改查询<br data-page-node-id="KvN9qyeSWMberOw5v1YkrO">
+  · 生成段：资料对但答错？→ 改 Prompt / 换模型 / 降 temperature</div>
+  <div class="why" data-page-node-id="7Ewj8R5sdFGPsefbf9FirC">先定位是"没找到资料"还是"找到了但答错"，否则容易乱调。</div>
+</div>
+
+<h2 data-page-node-id="EJxywy2mskETC065F4DwUv">三、工程与参数</h2>
+
+<div class="qa" data-page-node-id="aEuF7UiFmfuKDG2dpJfb2E">
+  <div class="q" data-page-node-id="Osx0wgJNkRA3fcvnjgQ6cc"><span class="n" data-page-node-id="wAKZVeXYkPCv9YOJClpaFw">Q21</span>temperature 是什么？</div>
+  <div class="a" data-page-node-id="THtD1XdybMM7CaVNxRkjXP">控制随机性。<b data-page-node-id="cAqFVZ2fbpf9NTfaSgnDas">0 = 确定、可复现（适合事实问答）</b>；1+ = 发散（适合创意）。RAG 问答建议 0–0.3。</div>
+</div>
+
+<div class="qa" data-page-node-id="KCiyaekUILFshNDyttsRU3">
+  <div class="q" data-page-node-id="YKs536UhCGrH5Pw3Jz81Gx"><span class="n" data-page-node-id="Xm7V9vT2uVSr8Iifs21VV4">Q22</span>Token 是什么？</div>
+  <div class="a" data-page-node-id="pRtyipRwshPiQL4rtlr4v1">模型处理文本的最小单位，约等于"字/词片段"。中文约 1 字 ≈ 1–2 token。<b data-page-node-id="Z2f9oORATEKGV754wCNiH2">计费和上下文长度都按 token 算。</b></div>
+</div>
+
+<div class="qa" data-page-node-id="FxITOc9pwFpPZUMBFus0XP">
+  <div class="q" data-page-node-id="GnHFD3Vn4csdEwz9STbIBh"><span class="n" data-page-node-id="r1dSx9PxiwIwWJ1DcYW5Ab">Q23</span>上下文窗口不够怎么办？</div>
+  <div class="a" data-page-node-id="Pk5vwrAKflxpmz6YpEu2Kk">①减少 K ②压缩片段（抽取关键句）③分步回答 ④换长上下文模型。</div>
+</div>
+
+<div class="qa" data-page-node-id="DaHpGAI9l22Cp34o25zxP4">
+  <div class="q" data-page-node-id="q4PTCUmvd3vYhMV3bFELnH"><span class="n" data-page-node-id="qSZEfbYZrOVwirPP3xdn6N">Q24</span>为什么不全用长上下文（把资料全塞进去）？<span class="tag t-hot" data-page-node-id="E8eGexBc4Cr0w2cuHyk5w1">进阶</span></div>
+  <div class="a" data-page-node-id="OC2C6ufzgpPyEtUaLCWUrC">①成本高（token 贵）②有 <b data-page-node-id="xYjkFpjE2CTQqkZ7qK9fQU">"lost in the middle"</b>（中间的上下文容易被模型忽略）③延迟高。</div>
+  <div class="why" data-page-node-id="tH4cwMmsJKBmR1TRaoStFh">RAG 的价值就是"精准投喂"，而不是"倒一缸水"。</div>
+</div>
+
+<div class="qa" data-page-node-id="i4WUk90oqP98AG6uXrGW3d">
+  <div class="q" data-page-node-id="CUAUcmHzsTYAo4zhVOUVaa"><span class="n" data-page-node-id="tgX5bIxSQgPBrOIRwObCNU">Q25</span>RAG 的成本和延迟在哪？</div>
+  <div class="a" data-page-node-id="YbWQE3AyOf2LBCeuwObKwb">成本：嵌入（一次性）+ LLM 调用（每次）。延迟：检索 + LLM 生成（主要部分）。优化：缓存、批处理、小模型路由、流式输出。</div>
+</div>
+
+<h2 data-page-node-id="KRPpH2wnaJUcypzu3SpPnr">四、Agent 扩展（投 AI 应用岗必备）</h2>
+
+<div class="qa" data-page-node-id="jQqGehXBtWA9RXdN0x2T53">
+  <div class="q" data-page-node-id="f5EHSwOJlPL7SvPvlpKbUM"><span class="n" data-page-node-id="AaXz9NLrqrbdVz7DrK1Fle">Q26</span>什么是 AI Agent？<span class="tag t-must" data-page-node-id="nJ8MYSxFaFlg9F4tWsWKTE">必背</span></div>
+  <div class="a" data-page-node-id="uecP4jUE85brzhiC2RBqvB">能<b data-page-node-id="tFKu5Vq7GEXeAikK2YoWmd">自主规划、调用工具、多步执行、根据结果调整</b>的 LLM 系统。<b data-page-node-id="zNZR1foyzYWoYA01EWpRz6">核心 = LLM + 工具 + 记忆 + 规划。</b></div>
+  <div class="why" data-page-node-id="kRsS02MMZWGrnefko5jyMV">普通 LLM 是"你问我答"，Agent 是"给我目标，我自己拆步骤去干"。</div>
+</div>
+
+<div class="qa" data-page-node-id="TuJlFS9onvhCxcHcKdTxkh">
+  <div class="q" data-page-node-id="NyVLxoQkMB65CjWA1eieAn"><span class="n" data-page-node-id="szRSuEO1700OYMIjDCbvox">Q27</span>Function Calling / Tool Calling 是什么？<span class="tag t-must" data-page-node-id="ewpC7t53hWuQxEAFqc51uV">必背</span></div>
+  <div class="a" data-page-node-id="JaUHHBwzzrbBA9cOGHXWTE">让 LLM 输出<b data-page-node-id="BWZJIsX8RLOrwfeRdhGT6W">结构化的调用请求</b>（函数名 + 参数），由程序执行后把结果回传。是 Agent 的"手脚"。</div>
+  <div class="why" data-page-node-id="exbD8kdQ8lY3Ap9dTRGRGD">模型自己不能真的"做事"，它只会"说"——Tool Calling 让它能把"意图"变成"动作"。</div>
+</div>
+
+<div class="qa" data-page-node-id="DpnkFr55DLoWSsklQ0kSku">
+  <div class="q" data-page-node-id="WHzBHYdenwtDDvlS7dCqtD"><span class="n" data-page-node-id="k7bSrhyrY7DStm7ALWhFlK">Q28</span>什么是 MCP？<span class="tag t-hot" data-page-node-id="VUmMmpXNoStmDRfANgcGk7">进阶</span></div>
+  <div class="a" data-page-node-id="byMIUC3x7BbU9lEDDvW8FC"><b data-page-node-id="XrnMQgM5TMDJMrBEV0G3n2">MCP = Model Context Protocol，模型上下文协议。</b>Anthropic 提出的开放标准，统一 LLM 与外部工具/数据的连接方式，替代各家私有插件协议。</div>
+  <div class="why" data-page-node-id="o7FSaQ9iPXiBX5gEXy3FS9">类比：<b data-page-node-id="de5ayirExPqHqRLHvWipVp">"AI 世界的 USB-C 接口"</b>——一个标准插所有设备，不用每家一个转接头。</div>
+</div>
+
+<div class="qa" data-page-node-id="ptNOcSXXBOy0W96lYMr2Vl">
+  <div class="q" data-page-node-id="b0kJuBMvZvQXVPwDQL0nFz"><span class="n" data-page-node-id="0tLwbE4sIhP5m2l0yBi2de">Q29</span>ReAct 是什么？</div>
+  <div class="a" data-page-node-id="vxotWr5TyfTG7p3E5y8lIE"><b data-page-node-id="YvX29EQqo9G9qgSSiMGIYE">Reasoning + Acting。</b>让模型"边想边做"：思考 → 行动 → 观察 → 再思考，循环。是 Agent 的基础范式。</div>
+</div>
+
+<div class="qa" data-page-node-id="XQgy3lur7EmR0IRk83pAnE">
+  <div class="q" data-page-node-id="wSrOM4IXbAFLxCkGUMDd06"><span class="n" data-page-node-id="eUWC1sm6JGKZ0TWxQ2EI1N">Q30</span>什么是多智能体（Multi-Agent）？</div>
+  <div class="a" data-page-node-id="fiOzCWd9vcFNI34iIFnYGf">多个 Agent <b data-page-node-id="sFHEBNESOwiiUXp2fjPpfX">分工协作</b>（如研究员/写手/审核者），可互相通信。框架：<code data-page-node-id="KWjG7SW1Qx1zTwYSLRCpt3">AutoGen</code>、<code data-page-node-id="9J86ZmjtD2NsFTJ0jcDNo8">CrewAI</code>、<code data-page-node-id="dBAu4zvju0hT6eG0EiQQEk">LangGraph</code>。</div>
+  <div class="why" data-page-node-id="7W1rtU75IEvyyPHt79WGaL">单个 Agent 上下文有限、容易跑偏；分工后每个角色更聚焦。</div>
+</div>
+
+<div class="qa" data-page-node-id="wtlO2OTv1TZbIbPokfo4pw">
+  <div class="q" data-page-node-id="yUVQaNeHmifU2651HSgk7e"><span class="n" data-page-node-id="DGcAEupvdDgX62n3DBQubh">Q31</span>Agent 的记忆怎么设计？</div>
+  <div class="a" data-page-node-id="FWRlaPnVX2u8JaB6a9OUL2">短期（上下文窗口）、长期（向量库检索）、情景（历史对话摘要）。参考 <code data-page-node-id="6e7CHWSdBqqriJwgIJLlR9">MemGPT</code> / <code data-page-node-id="8vZo8uFWNqfHCI7TfpOmQa">Letta</code> 的分层记忆思路。</div>
+</div>
+
+<h2 data-page-node-id="hhYY0HBJZPVJhg1BRv3EMB">五、送命题（面试官最爱挖的坑）</h2>
+<div class="lead" data-page-node-id="3K1Co51ndRY8MxmcyA3a9w">这几题答好了，面试官会觉得"这人是真懂"。用紫色标出。</div>
+
+<div class="killer" data-page-node-id="nuPWgERXYIZizWJMNw8wvD">
+  <div class="q" data-page-node-id="bVkpTgjvQRuSKR5VA6xhCM"><span class="n" data-page-node-id="4SZQapNBI0L2PwuusIv8SX">Q32</span>RAG 能完全消除幻觉吗？</div>
+  <div class="a" data-page-node-id="oulM3oBmYUM9IC3Kx5eXeS"><b data-page-node-id="sJINcSRRX2tbUdFx0HxOi5">不能。</b>它<b data-page-node-id="YB5JRCDGfCf2JMsWEuU9iO">降低</b>幻觉，但检索错、模型不听指令、多跳推理仍会出错。所以必须配合评测 + 兜底机制。</div>
+</div>
+
+<div class="killer" data-page-node-id="oZlFWNo4UbmAdEB7km9k8z">
+  <div class="q" data-page-node-id="insBUjJWDM7Z2CSxfZoMHL"><span class="n" data-page-node-id="3GfHmqSdJsr1nW0mZM3aWJ">Q33</span>你的项目用了什么技术栈？为什么这么选？</div>
+  <div class="a" data-page-node-id="su8vpn5aRHugdtwJaLPEDr">（模板，替换成你的）<b data-page-node-id="NDLpAyip2Z9e8UMNqGGdYD">LangChain</b> 做编排 + <b data-page-node-id="esbQmozlQlXOrSfKiBXQTo">本地 BGE 嵌入</b>（免费、数据不出域）+ <b data-page-node-id="C9dyagFincG8onkfmWDinq">云端 DeepSeek</b> 生成（效果好、成本低）+ <b data-page-node-id="iDHtRTxnCyf4VkeOftiFEg">内存向量库</b>（小数据量够用）。<br data-page-node-id="z2JBlPITVlp4V546d3EEq0"><b data-page-node-id="KVp9uC7HOh4x1qNsyNaziQ">关键：要能说出"为什么不用 XX"。</b></div>
+</div>
+
+<div class="killer" data-page-node-id="MFqfDmpvN6LtBl8VISAJIh">
+  <div class="q" data-page-node-id="2WAt5xGFOI8yxUESTQOBCa"><span class="n" data-page-node-id="Q4eaGoqc4QGShF3Al8tI5o">Q34</span>如果检索到的片段是错的，你的系统会怎样？</div>
+  <div class="a" data-page-node-id="8A0zATif5Uia8GrikVs5eS">如果检索把不相关片段误判为相关混进来，<b data-page-node-id="HFykQQ7FeHS37uNKxdh8ps">大模型会照着错的编</b>。<br data-page-node-id="QD1YbHiVWYntinjwCiffVe">所以"答得对"依赖两道防线：<b data-page-node-id="QGUoaKgPJDpt1oSUN8AYOL">①Prompt 兜底约束 ②检索质量</b>。想加固就得加<b data-page-node-id="pdOLOEIfyEFcu8qlYA4OZe">重排 + 相似度阈值过滤</b>。</div>
+</div>
+
+<div class="killer" data-page-node-id="vx15s6j2C7Kcuuxnh74HUW">
+  <div class="q" data-page-node-id="YbPhEEcQHnUYasdpGzjyGx"><span class="n" data-page-node-id="d9bQma7JoW1c2gTjA0l0Ke">Q35</span>RAG 项目里，你觉得最容易出问题的是哪一步？</div>
+  <div class="a" data-page-node-id="KJfkg11ryohlIh91lUcYfB">（开放题，展示思考深度）<b data-page-node-id="L9Ya27aqPIDL5F035cGkR3">切块和检索</b>。<br data-page-node-id="RcqVDh8pDTSji4EPH6I6JI">切块决定了"信息以什么粒度存在"，切错了后面全错；检索决定"模型看到什么资料"，检索不准，Prompt 写得再好也救不回来。<b data-page-node-id="q0ogFyeN5A7m702Lmgi57r">所以我最看重的是这两步的调优和评测。</b></div>
+</div>
+
+<h2 data-page-node-id="EWIKTR0uhISxwlC9H31Xdf">六、术语速查（面试前扫一眼）</h2>
+<table data-page-node-id="csE4ESb9qAcdR8lePiG2iq">
+  <tr data-page-node-id="IpJ3QEbyvHM2cZSapHw2xo"><th data-page-node-id="rihSYYgNEyHmUKr3oYy0wX">缩写</th><th data-page-node-id="TxB6tUnKWDj7hZt0shEv6j">全称</th><th data-page-node-id="NgykT8q1fcrnDSRgjaa1VI">中文/含义</th></tr>
+  <tr data-page-node-id="ZXvphiIv6yI5LNGePPqEGC"><td data-page-node-id="jA1b2FulMFZn0WK9Jb0Dgj"><b data-page-node-id="9CSCxm35aZe1nkaZeJQCpU">LLM</b></td><td data-page-node-id="NAFXL2yD2pwsV6GwFip7n6">Large Language Model</td><td data-page-node-id="Us1UrLwRAcTGihbfMAfU0Q">大语言模型</td></tr>
+  <tr data-page-node-id="DhSSaOy2sTEfAvAf6QA5xq"><td data-page-node-id="se4HHCQwoxnZOeczMTuJiD"><b data-page-node-id="PiriOGvA7tIUq3v5VkZRBk">RAG</b></td><td data-page-node-id="CVeFqBjmKFBHldy4HCPGcD">Retrieval-Augmented Generation</td><td data-page-node-id="BIZk1v0ZUDTmSRzLo2gN2W">检索增强生成</td></tr>
+  <tr data-page-node-id="kLaAbgEMuJxK5LPcIuZLVD"><td data-page-node-id="PgGFvvQkRFnNaQqBc57MRp"><b data-page-node-id="F0rSfv3t76l84FcXClc4JF">Embedding</b></td><td data-page-node-id="emnbk8zrMF7N9oR4pDWAOX">—</td><td data-page-node-id="BuXIJ6yDRpEJsaxxHmPDvc">嵌入，把文本变向量</td></tr>
+  <tr data-page-node-id="FwBZfHrXdXKCjmP0eD3w3I"><td data-page-node-id="zY8rwX4cgpcpBc4q8KGnjB"><b data-page-node-id="u4u1SWBn3GkqrFuIConLyH">ANN</b></td><td data-page-node-id="BB00QgTqq45wxd1j6zjKtK">Approximate Nearest Neighbor</td><td data-page-node-id="W5zGec6bwysPNd0hd15BKr">近似最近邻搜索</td></tr>
+  <tr data-page-node-id="o3wxLBNYJStO8c79qparnH"><td data-page-node-id="QiphKqpDKL5QDbFl8YnIqk"><b data-page-node-id="irsE3Q5PTQtpt4DjibQc17">BM25</b></td><td data-page-node-id="DijYLiHMzGGHa6DEDh3Hj8">Best Matching 25</td><td data-page-node-id="zyNZC8WYe9l4YGUnS3EC8k">经典关键词检索算法</td></tr>
+  <tr data-page-node-id="PowcF6OJWEhr5rht3gHCpO"><td data-page-node-id="ZFCFTvQXmNRKsOOg3W5Clu"><b data-page-node-id="NdYvcSRcFoOMB5vSQ88BRo">RRF</b></td><td data-page-node-id="x4Cp4gHxyiGx9IKDBmLwAj">Reciprocal Rank Fusion</td><td data-page-node-id="vxJlIOXOansNgIps2hGuB6">倒数排名融合</td></tr>
+  <tr data-page-node-id="6yJyf37rDdz2917rngWS9f"><td data-page-node-id="SXYSeNvgwytzMWZfOGqSr8"><b data-page-node-id="2RIwyy80N1y7f4UU1pY2ot">Top-K</b></td><td data-page-node-id="cDY6FtlG3ltLocSe3z9i4w">—</td><td data-page-node-id="8xOnZu0xDqWTGz6S4fjQeu">取相似度最高的前 K 个</td></tr>
+  <tr data-page-node-id="48QvH6zHGrxrs3KCsENfqK"><td data-page-node-id="f5P3T5WSUn7eW1jcfZKIvl"><b data-page-node-id="AKqnC0oyrwLP6H5rz8EfC1">Eval</b></td><td data-page-node-id="NfSpuJd9NwEKeSjFc3W76h">Evaluation</td><td data-page-node-id="DhRjVzuWHQO6SLVXQSKomI">评测</td></tr>
+  <tr data-page-node-id="Pi1PoalwsxoqftaF76vIjF"><td data-page-node-id="6KG9ZtLf9baMnxTFIwZNoh"><b data-page-node-id="SnLN0Ke1rNWtECmR17bx4U">MRR</b></td><td data-page-node-id="jLdXQNrfHE8GE9NLlPkVte">Mean Reciprocal Rank</td><td data-page-node-id="ToYJz83o6oSWhEIXwyPcmL">平均倒数排名（检索指标）</td></tr>
+  <tr data-page-node-id="Gb3Mv4UWleBCFYDBA0qSeL"><td data-page-node-id="oXG4BUIsrVMhD8rYBen6us"><b data-page-node-id="VNFvRl8hteaDZ72aUvTluC">HyDE</b></td><td data-page-node-id="a7YFa9c0q7BxiDi3E5w6Mg">Hypothetical Document Embeddings</td><td data-page-node-id="74okqMYnm3Iik18kDQ5qGe">用"假设答案"去检索</td></tr>
+  <tr data-page-node-id="cyHOOoTFDmIcSPBiHm02vz"><td data-page-node-id="iyEOwryueBNoN5elmBP6He"><b data-page-node-id="DxuKMWoPooamepQd0UaMhr">Cross-Encoder</b></td><td data-page-node-id="t1LlvF6k9GzrtITsJxA49z">—</td><td data-page-node-id="dFp8AzaJoOlZh2nhZQ307X">交叉编码器（用于精排）</td></tr>
+  <tr data-page-node-id="xmwfd7REzCSNeVsn1LTNf7"><td data-page-node-id="Jf9RJy9XxBeecpPjWFG0vT"><b data-page-node-id="QyKUYqNkUu0UfgeUyBwifP">MCP</b></td><td data-page-node-id="ARNDr9EBhzYRtFqqlWTxFs">Model Context Protocol</td><td data-page-node-id="apbPkVOS8H0cfup7qwSxzx">模型上下文协议</td></tr>
+  <tr data-page-node-id="BGE65ZdXUlHCvrAhmQ7Ucj"><td data-page-node-id="xIfGXXRv0fVLwaWSY3YTqP"><b data-page-node-id="Nw1Gb6jTHPCLoC2HYTW7Ul">ReAct</b></td><td data-page-node-id="BixK9kEbgQvxk4cEzRQdM9">Reasoning + Acting</td><td data-page-node-id="CmdshaNCIljpYlEk3W5E6u">边推理边行动</td></tr>
+  <tr data-page-node-id="qsm6r9zztlba3BHCWsqfCW"><td data-page-node-id="30LmGBkKdSJ3sIIj2QAwEs"><b data-page-node-id="kz7XA0eiK2Vu57GhoySHja">VLM</b></td><td data-page-node-id="HvIhXBBZ6VGZLJkKPPi3yf">Vision Language Model</td><td data-page-node-id="WFz2Gq6DtZ1mZZGGUUXV3P">视觉语言模型（能看图）</td></tr>
+  <tr data-page-node-id="c0PSez9d3aOtvoEQK5aoxD"><td data-page-node-id="rQqYQjvJUrjFjgBYHa1VNX"><b data-page-node-id="pGd3SQGBcKVK1BRzbKNtGs">Token</b></td><td data-page-node-id="NJvEpcCyEFejJ4emgyyhvr">—</td><td data-page-node-id="uLSlUCaZ4UYwF6wYbJmq1t">模型处理文本的最小单位</td></tr>
+  <tr data-page-node-id="tOJNTYoaP9YHvUSyhocMzk"><td data-page-node-id="yWTs6IylGqDK4wcvUAGWiH"><b data-page-node-id="b7GSb4RcrXexzCl3N40C6D">RAGAS</b></td><td data-page-node-id="GJjfJbJASInkPGTz5q2eR5">RAG Assessment</td><td data-page-node-id="aHc4EEMAmHRxSIjh5idXVc">RAG 评测框架</td></tr>
+</table>
+
+<footer data-page-node-id="6TDqkSFtkFpD3xwzYiwCFz">
+  题量 35 题 · 覆盖初面到二面 · 配套动手项目见 <code data-page-node-id="8zKF2Pqh2CdxmevQf6vxxw">D:\Desktop\rag-demo</code><br data-page-node-id="eAw5L4QEvOYlAPnOKnbMCe">
+  <b data-page-node-id="q8KbrZKJsu1JhUWDWITWNo">提醒：</b>八股能背，但面试官一深挖"为什么"就见分晓。建议每道题都自己讲一遍，卡住的地方回项目里验证。
+</footer>
+
+</div>
+</body>
+</html>
