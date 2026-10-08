@@ -405,7 +405,11 @@ def retrieve_one(state, config: RunnableConfig) -> dict:
         ans = llm.invoke(prompt, config=config).content.strip()
     except Exception as e:  # noqa: BLE001
         ans = f"（{question}）生成失败：{str(e)[:120]}"
-    return {"sub_answers": [ans], "tool_calls": tool_calls + 1}
+    # ⚠️ 必须把 docs 一并写回 state：
+    #    retrieved_docs 是对外可观测的字段（接口返回「命中片段数」、RAGAS 评测取上下文），
+    #    只写 sub_answers 会让上游完全看不到「这轮到底检索到了什么」。
+    #    多分支并行时靠 state.add_docs reducer 自动累加去重。
+    return {"sub_answers": [ans], "retrieved_docs": docs, "tool_calls": tool_calls + 1}
 
 
 def respond(state: State, config: RunnableConfig) -> dict:

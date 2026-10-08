@@ -15,3 +15,15 @@ langgraph-checkpoint==4.2.0
 langgraph-prebuilt==1.1.0
 chromadb==1.5.9
 sentence-transformers==6.1.0
+
+# ── 检索层增强 ────────────────────────────────────────
+# BM25 稀疏检索（混合检索用），分词由 jieba 负责
+rank-bm25==0.2.2
+jieba==0.42.1
+
+# ── 评测与可观测（P2）─────────────────────────────────
+# ragas：生成层评测（faithfulness / answer_relevancy / context_precision）
+#   注：ragas 会带入 datasets、openai 等依赖，安装体积较大，属正常。
+ragas>=0.2.0
+# langfuse：链路可观测（未配置 LANGFUSE_* 时自动跳过，不影响主流程）
+langfuse>=3.0.0
