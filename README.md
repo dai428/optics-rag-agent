@@ -81,11 +81,24 @@ __start__ → rewrite ────┼─(问题模糊)───────→ c
 > ⑥ 的取舍：来源加权让 R@5 补上最后 15 pt，MRR 只掉 0.011 —— 用极小的排序代价换「答案必在前 5」的硬保证，划算。
 > 系数经网格搜索确定（`1.08/0.92` 会把 R@1 压到 60%，得不偿失）。
 
+### 生成层评测（RAGAS，抽样 5 题）
+
+检索好不等于回答好。用 RAGAS 对生成质量做抽查（裁判模型 = 本项目的 DeepSeek-V4-Flash）：
+
+| 指标 | 含义 | 得分 |
+|---|---|---|
+| **faithfulness** | 答案的每句陈述能否在检索资料里找到依据（**衡量幻觉**） | **0.889** |
+| **answer_relevancy** | 答案是否正面回应用户的问题（衡量跑题） | **0.818** |
+
+> 说明：因 `eval_set.json` 是检索评测集（无逐题标准答案），只用不需要 `reference` 的两个指标。
+> 且裁判模型与被评模型相同（自评），**绝对分值仅供参考，横向对比才有意义**。
+
 复现命令：
 
 ```bash
 cd app
-../.venv/Scripts/python.exe eval_rag.py --compare   # 三种模式对比
+../.venv/Scripts/python.exe eval_rag.py --compare   # 三种检索模式对比
+../.venv/Scripts/python.exe eval_gen.py --limit 5   # 生成层评测（RAGAS）
 ../.venv/Scripts/python.exe verify_p1.py             # P1 四项行为验证
 ```
 
@@ -215,9 +228,37 @@ AMD Radeon Cloud 各模型单次调用耗时（2026-10-08 实测）：
 
 ---
 
-## 十、下一步
+## 十、评测工具一览
 
-- [ ] **生成层评测**：引入 RAGAS（faithfulness / answer relevancy / context precision）
-- [ ] **可观测**：接入 Langfuse，把每次检索-生成链路可视化
-- [ ] **容器化**：补全 Dockerfile，一键起服务
+| 脚本 | 评什么 | 是否需要 LLM | 典型耗时 |
+|---|---|---|---|
+| `app/eval_rag.py` | **检索层**：Recall@k / MRR / NDCG / 关键词命中 | 否 | 秒级 |
+| `app/eval_gen.py` | **生成层**：faithfulness / answer_relevancy（RAGAS） | 是 | 数分钟 |
+| `app/verify_p1.py` | **Agentic 行为**：该反问吗 / 该拆吗 / 摘要保不保数字 | 是 | 数分钟 |
+| `app/test_rag.py` | **服务链路**：接口 / 多轮记忆 / 会话隔离 | 是 | 分钟级 |
+
+```bash
+cd app
+../.venv/Scripts/python.exe eval_rag.py --compare      # 检索层三模式对比
+../.venv/Scripts/python.exe eval_gen.py --limit 5      # 生成层（先跑5题省额度）
+../.venv/Scripts/python.exe eval_gen.py --from-raw     # 复用已采集数据，只重评分
+../.venv/Scripts/python.exe verify_p1.py               # Agentic 行为全量验证
+```
+
+> **生成层评测只用了 2 个 RAGAS 指标（faithfulness + answer_relevancy）**，这是个有意的取舍：
+> 本项目的 `eval_set.json` 是**检索评测集**（只标了期望来源 + 关键词），没有逐题标准答案；
+> 而 RAGAS 的 `context_precision` / `answer_correctness` 都强制要求 `reference` 列。
+> 硬凑答案容易失真、反而污染评测，所以只保留不需要标准答案、且恰好覆盖
+> 「有没有编 + 跑不跑题」这两个最关键维度的指标。
+> 将来补齐标准答案后，把 `context_precision` 加回 metrics 列表即可。
+
+---
+
+## 十一、下一步
+
+- [x] **检索层评测**：20 题 Recall / MRR / NDCG（R@5 100%）
+- [x] **生成层评测**：RAGAS faithfulness + answer_relevancy
+- [x] **可观测**：`observability.py` 接 Langfuse（未配置自动跳过）
+- [x] **容器化**：Dockerfile / .dockerignore
 - [ ] 语料扩到设备手册 / 更多论文，做增量索引
+- [ ] 多模态：把实验图表也纳入检索

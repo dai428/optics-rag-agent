@@ -9,6 +9,8 @@ main.py — FastAPI 服务：把光学 RAG Agent 暴露成 HTTP 接口
   POST /chat              提问（create_agent 黑盒版；session_id 会话隔离）
   POST /graph/chat        提问（LangGraph 显式版；含查询改写）
   POST /chat/reset        清空某会话上下文
+
+可观测：配置 .env 里的 LANGFUSE_* 后，自动把每次链路上报 Langfuse；未配置则静默跳过。
 """
 import re
 
@@ -20,11 +22,13 @@ from pydantic import BaseModel, Field
 try:  # 包方式：uvicorn app.main:app（在项目根目录执行）
     from .knowledge_base import corpus_info
     from .rag_agent import build_agent, API_KEY
+    from .observability import callbacks as _obs_callbacks
 except ImportError:  # 扁平方式：cd app && uvicorn main:app
     from knowledge_base import corpus_info
     from rag_agent import build_agent, API_KEY
+    from observability import callbacks as _obs_callbacks
 
-app = FastAPI(title="光学 RAG Agent 服务 · 张万森", version="1.1")
+app = FastAPI(title="光学 RAG Agent 服务 · 张万森", version="1.2")
 
 _agent = None   # create_agent 懒加载
 _graph = None   # LangGraph 懒加载
@@ -144,7 +148,11 @@ def graph_chat(req: ChatRequest):
     try:
         result = graph.invoke(
             {"messages": [HumanMessage(content=req.message)]},
-            config={"configurable": {"thread_id": req.session_id}},
+            config={
+                "configurable": {"thread_id": req.session_id},
+                # Langfuse 观测（未配置时是空列表，零影响）
+                "callbacks": _obs_callbacks(),
+            },
         )
     except Exception as e:  # noqa: BLE001
         raise _map_llm_error(e) from e

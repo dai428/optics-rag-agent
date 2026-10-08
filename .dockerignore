@@ -13,3 +13,18 @@ legacy/
 # 🔴 关键：.env 里有 AMD_API_KEY，绝不能打进镜像
 #    运行时用 --env-file .env 从外面喂进去，密钥就不留在镜像层里了
 .env
+
+# 🔴 关键：语料是未发表的实验材料，绝不能打进镜像分发
+#    （向量库与父块仓库是它的衍生物，同理排除；容器内可用挂载卷喂数据）
+data/docs/
+data/chroma_db/
+data/parent_store/
+data/models/
+data/eval_gen_raw.json
+
+# 参考资料与评测中间产物
+refs/
+.piptmp/
+.pytest_cache/
+htmlcov/
+*.log

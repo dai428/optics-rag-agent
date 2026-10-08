@@ -23,6 +23,10 @@ eval_report*.json
 htmlcov/
 .pytest_cache/
 
+# 生成层评测中间产物：eval_gen_raw.json 含语料原文，绝不能提交
+data/eval_gen_raw.json
+data/eval_gen_report.json
+
 # 参考资料：第三方开源仓库克隆（体积大，且各自有 git 历史，不入库）
 refs/
 # legacy 目录下的运行日志
