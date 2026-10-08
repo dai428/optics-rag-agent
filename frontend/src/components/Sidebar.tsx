@@ -14,10 +14,12 @@ interface Props {
   onDelete: (sid: string) => void
 }
 
-/** 今天只显示时分，更早显示月/日 —— 列表够窄，不占地方 */
-function fmtTime(sec: number): string {
-  if (!sec) return ''
-  const d = new Date(sec * 1000)
+/** 今天只显示时分，更早显示月/日 —— 列表窄，不占地方。
+ *  入参是后端给的 ISO 字符串（无时区），JS 会按本地时间解析。 */
+function fmtTime(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
   const sameDay = d.toDateString() === new Date().toDateString()
   const hh = String(d.getHours()).padStart(2, '0')
   const mm = String(d.getMinutes()).padStart(2, '0')
@@ -57,12 +59,12 @@ export default function Sidebar({
         )}
         {sessions.map((s) => (
           <div
-            key={s.session_id}
-            className={`session-item${s.session_id === currentSid ? ' active' : ''}`}
-            onClick={() => onSelect(s.session_id)}
+            key={s.id}
+            className={`session-item${s.id === currentSid ? ' active' : ''}`}
+            onClick={() => onSelect(s.id)}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && onSelect(s.session_id)}
+            onKeyDown={(e) => e.key === 'Enter' && onSelect(s.id)}
           >
             <div className="session-main">
               <span className="session-title">{s.title || '新会话'}</span>
@@ -76,7 +78,7 @@ export default function Sidebar({
               title="删除会话（同时清除模型记忆）"
               onClick={(e) => {
                 e.stopPropagation()
-                onDelete(s.session_id)
+                onDelete(s.id)
               }}
             >
               ×
