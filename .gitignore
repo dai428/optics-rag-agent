@@ -58,3 +58,9 @@ data/eval_set.json
 # notes/ 是基于私有语料的评测报告与面试八股，属于个人资料而非项目交付物。
 # 其中 notes/评测报告.html 引用了未发表论文的文档名与题目内容。
 notes/
+
+# ── CI 配置暂不入库 ──────────────────────────────────
+# 原因：当前 gh 令牌缺少 workflow scope，无法推送含 .github/workflows/ 的分支。
+# 配置已保存在本地 .github/workflows/ci.yml 与 D:\Desktop\rag-demo-ci-backup\。
+# 补齐权限（gh auth refresh -s workflow）后，移除本规则并重新提交该文件。
+.github/workflows/
