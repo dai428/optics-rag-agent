@@ -1,5 +1,30 @@
 // frontend/src/types.ts
-// 全局类型定义：与后端 /api/** 的返回结构一一对应
+// 全局类型定义：与后端 /api/** 的返回结构一一对应。
+// 字段名刻意保持与后端一致，避免中间做一层无意义的改名映射。
+
+/** 一条结构化引用：可点击定位到原文 */
+export interface Citation {
+  /** 在本轮回答中的序号（对应正文里的 [1] [2]） */
+  index: number
+  /** 文件名 */
+  source: string
+  /** 相对语料目录的路径，删除文档时使用 */
+  rel_path: string
+  /** 章节路径，如「第二章 > 2.3 目标指标定义」 */
+  section: string
+  /** 页码（仅 PDF 有） */
+  page?: number | null
+  /** 父块 id，用于在原文中定位 */
+  chunk_id: string
+  /** 文件类型：markdown / pdf / docx / csv / text */
+  file_type: string
+  /** 重排分数（logit + 来源先验），越高越相关 */
+  score?: number | null
+  /** CrossEncoder 原始分数，未叠加来源先验 */
+  raw_score?: number | null
+  /** 命中的原文片段，用于快速判断引用是否真的支持结论 */
+  quote: string
+}
 
 /** done 事件携带的元信息 */
 export interface DoneMeta {
@@ -13,9 +38,13 @@ export interface DoneMeta {
   used_retrieval?: boolean
   /** 后端统计的总耗时（秒） */
   elapsed?: number
+  /** 是否因证据不足而拒答 */
+  abstained?: boolean
+  /** 拒答原因 */
+  abstain_reason?: string
 }
 
-/** 一条聊天消息（仅存前端，见 App.tsx 的 localStorage 说明） */
+/** 一条聊天消息 */
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
@@ -26,8 +55,14 @@ export interface ChatMessage {
   error?: string
   /** 本轮回答的元信息 */
   meta?: DoneMeta
+  /** 本轮的结构化引用 */
+  citations?: Citation[]
   /** 本轮的执行轨迹（节点时间轴），用于「过程可解释」 */
   stages?: StageItem[]
+  /** 用户对该条回答的反馈 */
+  feedback?: 'up' | 'down'
+  /** 服务端消息 id（若来自历史加载） */
+  serverId?: number
 }
 
 /** 左栏会话列表项（字段与后端 /api/sessions 的返回一一对应） */
@@ -51,10 +86,23 @@ export interface StageItem {
   pending?: boolean
 }
 
+/** 索引与语料的一致性状态 */
+export interface IndexStatus {
+  status: 'ok' | 'stale' | 'missing' | 'incompatible' | 'unknown'
+  detail: string
+  stale: boolean
+  built_at?: string
+  files?: number
+  child_count?: number
+  parent_count?: number
+  diff?: { added: string[]; changed: string[]; removed: string[] } | null
+}
+
 /** GET /api/documents —— 知识库概况 */
 export interface DocumentsInfo {
   /** 语料文件名列表 */
   documents: string[]
+  document_count: number
   /** 向量库切片数 */
   chunks: number
   /** 父块数（分层切块的父块仓库） */
@@ -68,6 +116,53 @@ export interface DocumentsInfo {
     sparse_weight: number
     rerank_model: string | null
     retrieval_k: number
+    abstain_threshold: number | null
   }
+  index: IndexStatus
   chroma_dir: string
+}
+
+/** 就绪检查结果 */
+export interface ReadyInfo {
+  status: 'ready' | 'degraded'
+  checks: Record<string, { ok: boolean; detail: string; stale?: boolean }>
+}
+
+/** 索引构建报告 */
+export interface IndexReport {
+  ok: boolean
+  mode: string
+  child_count: number
+  parent_count: number
+  parsed_files: number
+  failed_files: { rel_path: string; reason: string }[]
+  warnings: string[]
+  elapsed_seconds: number
+  diff?: {
+    added: string[]
+    changed: string[]
+    removed: string[]
+    unchanged_count: number
+  } | null
+}
+
+/** 运行指标 */
+export interface MetricsInfo {
+  total_queries: number
+  abstained: number
+  abstain_rate: number | null
+  errors: number
+  avg_elapsed_ms: number | null
+  avg_retrieved: number | null
+  avg_citations: number | null
+  sessions: number
+  messages: number
+  feedback: {
+    total: number
+    up: number
+    down: number
+    positive_rate: number | null
+    recent: { rating: string; question: string; comment: string; created_at: string }[]
+  }
+  index: IndexStatus
 }

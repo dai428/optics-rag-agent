@@ -65,7 +65,11 @@ class Settings:
         )
     )
     # 会话与反馈数据库（SQLite，单文件，零运维）
-    database_path: Path = field(default_factory=lambda: _ROOT / "data" / "app.db")
+    database_path: Path = field(
+        default_factory=lambda: Path(
+            env_value("DATABASE_PATH", str(_ROOT / "data" / "app.db"))
+        )
+    )
     # 公开示例语料（脱敏，可提交到仓库）
     sample_docs_dir: Path = field(default_factory=lambda: _ROOT / "data" / "sample_docs")
     # 检索评测集：默认私有集；公开演示用 data/sample_eval_set.json

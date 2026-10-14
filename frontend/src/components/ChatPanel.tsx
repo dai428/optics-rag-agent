@@ -1,5 +1,8 @@
 // frontend/src/components/ChatPanel.tsx
 // 聊天主区：滚动消息列表 + 底部输入框
+//
+// 一个细节：流式逐字追加时会自动贴底，但如果用户手动往上滚（回看前文），
+// 就不该再抢他的滚动位置。所以这里判断「是否已接近底部」再决定要不要跟。
 
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
@@ -11,24 +14,39 @@ interface Props {
   streaming: boolean
   onSend: (text: string) => void
   onStop: () => void
+  onFeedback: (messageId: string, rating: 'up' | 'down') => void
+  onRegenerate: (messageId: string) => void
 }
 
 const EXAMPLES = [
-  'LCVR 的相位延迟量是怎么标定的？',
-  '全 Stokes 偏振检测的基本原理是什么？',
-  'DE 加权和 NSGA-II 两条优化路线各有什么优缺点？',
+  '测量矩阵条件数 κ2 的理论下界是多少？',
+  'LCVR 相比传统机械旋转波片有什么优势？',
+  '温度从 25℃ 升到 40℃，条件数恶化了多少？',
 ]
 
-export default function ChatPanel({ messages, streaming, onSend, onStop }: Props) {
+export default function ChatPanel({
+  messages,
+  streaming,
+  onSend,
+  onStop,
+  onFeedback,
+  onRegenerate,
+}: Props) {
   const [text, setText] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
+  const pinnedRef = useRef(true)
 
-  // 消息变化（含流式逐字追加）时贴底。用 scrollTop 而非 scrollIntoView，
-  // 免得把整个页面也一起滚走。
+  // 判断用户是否还在底部附近（阈值放宽到 80px，容忍小幅滚动）
+  const handleScroll = () => {
+    const el = scrollRef.current
+    if (!el) return
+    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  }
+
   useEffect(() => {
     const el = scrollRef.current
-    if (el) el.scrollTop = el.scrollHeight
+    if (el && pinnedRef.current) el.scrollTop = el.scrollHeight
   }, [messages])
 
   const submit = () => {
@@ -36,6 +54,7 @@ export default function ChatPanel({ messages, streaming, onSend, onStop }: Props
     if (!t || streaming) return
     onSend(t)
     setText('')
+    pinnedRef.current = true
     if (taRef.current) taRef.current.style.height = 'auto'
   }
 
@@ -56,14 +75,14 @@ export default function ChatPanel({ messages, streaming, onSend, onStop }: Props
 
   return (
     <main className="chat">
-      <div className="chat-scroll" ref={scrollRef}>
+      <div className="chat-scroll" ref={scrollRef} onScroll={handleScroll}>
         {messages.length === 0 ? (
           <div className="welcome">
             <div className="welcome-mark">◈</div>
-            <h2>向你的光学文献库提问</h2>
+            <h2>向你的科研资料库提问</h2>
             <p>
-              背后是一套 Agentic RAG：先改写问题、判断是否需要反问、必要时拆成子问题并行检索，
-              再基于命中的文献片段作答。
+              背后是一套可溯源的 Agentic RAG：先改写问题、判断是否需要反问、必要时拆成子问题
+              并行检索，再做交叉编码器精排；回答会附上可展开的原文证据，证据不足时明确拒答。
             </p>
             <div className="examples">
               {EXAMPLES.map((q) => (
@@ -79,7 +98,14 @@ export default function ChatPanel({ messages, streaming, onSend, onStop }: Props
             </div>
           </div>
         ) : (
-          messages.map((m) => <MessageBubble key={m.id} msg={m} />)
+          messages.map((m) => (
+            <MessageBubble
+              key={m.id}
+              msg={m}
+              onFeedback={onFeedback}
+              onRegenerate={onRegenerate}
+            />
+          ))
         )}
       </div>
 
@@ -89,7 +115,8 @@ export default function ChatPanel({ messages, streaming, onSend, onStop }: Props
             ref={taRef}
             value={text}
             rows={1}
-            placeholder="问点什么，比如「LCVR 延迟量标定的误差来源有哪些？」"
+            aria-label="提问输入框"
+            placeholder="问点什么，比如「条件数的理论下界是多少？」"
             onChange={handleChange}
             onKeyDown={handleKeyDown}
           />
@@ -104,7 +131,7 @@ export default function ChatPanel({ messages, streaming, onSend, onStop }: Props
           )}
         </div>
         <p className="composer-hint">
-          Enter 发送 · Shift + Enter 换行 · 对话按会话隔离，模型会记住本会话上文
+          Enter 发送 · Shift + Enter 换行 · 回答基于检索到的原文，引用可展开核对
         </p>
       </div>
     </main>

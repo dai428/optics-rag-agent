@@ -214,7 +214,15 @@ def compare(sample: bool = False, split: str | None = None) -> dict:
             f"{s[5]['keyword']:>5.1%}"
         )
     print("-" * 84)
-    return results
+
+    # 同时给出「推荐方案」的扁平指标，便于 CI 门禁与报告直接取用，
+    # 不必再记住 JSON 的嵌套层级（曾经因为层级搞错导致门禁读不到数据）。
+    return {
+        "recommended": "full",
+        "modes": results,
+        "metrics": results["full"]["metrics"],
+        "n": results["full"]["n"],
+    }
 
 
 if __name__ == "__main__":
