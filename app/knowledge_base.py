@@ -325,7 +325,8 @@ def _tokenize_zh(text: str) -> list[str]:
     import jieba
 
     tokens = [t.strip() for t in jieba.cut_for_search(text) if t.strip()]
-    # 数字、英文缩写单独保留（表格里的 396、1.2345、CN、Qmetric 全靠它们命中）
+    # 数字与英文缩写必须原样保留（表格里的 1.732、396、LCVR 这类 token
+    # 一旦被切碎就再也命中不了，而它们往往正是答案本身）
     return tokens
 
 
@@ -422,7 +423,7 @@ def _source_weight(doc) -> float:
     """按文件名给文档一个来源先验权重（见 config.source_prior 的说明）。
 
     匹配规则：文件名包含关键词就乘对应系数；命中多个关键词时取乘积
-    （如「示例实验_条件数温度标定」同时含「实验」→ 加权）。
+    （如「实验记录_温度标定」同时含「实验」与「数据表」→ 两次加权）。
     """
     name = doc.metadata.get("file_name", "") or doc.metadata.get("source", "")
     w = 1.0

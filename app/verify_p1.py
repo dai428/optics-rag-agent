@@ -91,7 +91,7 @@ def test_parallel():
     graph = _new_graph()
 
     cases = [
-        ("对比一下 DE 加权路线和 NSGA-II 路线的优缺点", True,  "复合（对比两条路线）→ 该拆"),
+        ("对比一下方案 A 和方案 B 的优缺点", True,  "复合（对比两条路线）→ 该拆"),
         ("温度漂移对测量精度的影响是多少？", False, "单点问题 → 不该拆"),
     ]
     ok = 0
@@ -124,13 +124,15 @@ def test_summary():
     graph = _new_graph()
     tid = "summary-case"  # 纯 ASCII：中文 thread_id 会让 invoke 卡死（见文件头注释）
 
-    # 先灌入几轮关键事实（带数字），超过 SUMMARIZE_TRIGGER（=8 条）后应触发摘要
+    # 先灌入几轮关键事实（带数字），超过 SUMMARIZE_TRIGGER（=8 条）后应触发摘要。
+    # ⚠️ 这里刻意使用**与任何真实研究无关的虚构数值**：本脚本会在 CI 与公开仓库中运行，
+    #    若填入真实实验数据，等于把未发表结果写进代码注释与测试输出。
     rounds = [
-        "DE 加权路线跑了 10 种权重扫描",
-        "那 DE 大概花了多少次评估？",
+        "示例方案 A 扫描了 10 组参数",
+        "那它大概花了多少次评估？",
         "计算成本大概是 128.5 次评估、96.3 秒",
-        "NSGA-II 那边呢？",
-        "NSGA-II 折中点方案全温域 ΔCN 改善 18.7%",
+        "示例方案 B 那边呢？",
+        "示例方案 B 在全温域下指标改善 18.7%",
     ]
     printed = False
     for i, q in enumerate(rounds, 1):
@@ -147,7 +149,10 @@ def test_summary():
         return True
 
     # 断言：摘要应保留数字（这是压缩质量的关键检验）
-    keep_num = any(num in (state.get("history_summary") or "") for num in ["10", "18.7", "128.5", "96.3"])
+    keep_num = any(
+        num in (state.get("history_summary") or "")
+        for num in ["10", "18.7", "128.5", "96.3"]
+    )
     print(f"\n   {'✅' if keep_num else '❌'} 摘要是否保留关键数字：{keep_num}")
     return keep_num
 
@@ -161,7 +166,7 @@ def test_budget():
     print(f"   SUMMARIZE_TRIGGER= {g.SUMMARIZE_TRIGGER}")
 
     graph = _new_graph()
-    q = "对比一下 DE 加权路线、NSGA-II 路线、以及多温度点扩展三种方案的优缺点和计算成本"
+    q = "对比一下方案 A、方案 B、方案 C 三种配置的优缺点和计算成本"
     state = graph.invoke({"messages": [HumanMessage(content=q)]}, config=_cfg("budget-case"))
     subs = state.get("sub_questions", [])
     tc = state.get("tool_calls", 0)

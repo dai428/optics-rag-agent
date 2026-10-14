@@ -54,7 +54,25 @@ KS = [1, 3, 5, 10]
 
 
 def _eval_file(sample: bool) -> Path:
-    return settings.sample_eval_set_path if sample else settings.eval_set_path
+    """选择评测集。
+
+    ⚠️ 私有评测集（data/eval_set.json）含未发表论文的实验数值，**不入 Git**，
+    只存在于本地。因此公开克隆里默认评测集是不存在的 —— 这时自动回退到
+    公开示例评测集，让「clone 后直接跑评测」这件事成立。
+    """
+    if sample:
+        return settings.sample_eval_set_path
+
+    private = settings.eval_set_path
+    if private.exists():
+        return private
+    if settings.sample_eval_set_path.exists():
+        print(
+            f"提示：未找到私有评测集 {private.name}，"
+            f"自动改用公开示例评测集 {settings.sample_eval_set_path.name}"
+        )
+        return settings.sample_eval_set_path
+    return private
 
 
 def _file_of(hit) -> str:
@@ -93,8 +111,8 @@ def _keyword_hit(case: dict, hits: list, k: int) -> bool:
     """判断前 k 条内容是否满足该题的关键词要求。
 
     默认要求**全部**关键词都出现（all），避免「只答对一半也算通过」。
-    若某题确实属于「新旧口径任一对即可」（例如语料中同时存在 396 与 17800 两套
-    评估网格），必须在评测集里显式写 `keyword_mode: "any"` —— 让放宽判定成为
+    若某题确实属于「新旧口径任一对即可」（例如同一份材料里先后存在两套评估网格
+    规模），必须在评测集里显式写 `keyword_mode: "any"` —— 让放宽判定成为
     一个可见的、需要理由的决定，而不是评测脚本的默认行为。
     """
     mode = case.get("keyword_mode", "all")

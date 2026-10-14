@@ -48,3 +48,8 @@ data/eval_gen_report.json
 refs/
 # legacy 目录下的运行日志
 legacy/run_log*.txt
+
+# ── 私有语料与评测集（绝不提交）──────────────────────
+# data/eval_set.json 记录了未发表论文的实验数值与期望来源，
+# 仅用于本地私有语料的检索评测；公开仓库使用 data/sample_eval_set.json。
+data/eval_set.json

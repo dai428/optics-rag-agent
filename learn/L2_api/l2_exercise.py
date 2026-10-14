@@ -77,12 +77,16 @@ def ask_with_context(material: str, question: str) -> str:
 
 
 def load_material(
-    filename: str = "偏振测量基础_2026-09-18.md",
+    filename: str = "偏振测量基础.md",
     max_chars: int = 800,
 ) -> str:
-    """从你的光学语料里读一段材料（默认截前 800 字）。"""
-    docs = Path(__file__).parent.parent.parent / "data" / "docs"
-    path = docs / "实验报告" / filename
+    """从语料目录里读一段材料（默认截前 800 字）。
+
+    默认指向公开示例语料，因此新克隆的仓库无需私有材料即可运行本练习。
+    想换成自己的语料时，把 filename 指向 CORPUS_DIR 下的实际文件即可。
+    """
+    docs = Path(__file__).parent.parent.parent / "data" / "sample_docs"
+    path = docs / filename
     if not path.exists():
         raise FileNotFoundError(f"语料不存在：{path}")
     return path.read_text(encoding="utf-8")[:max_chars]
