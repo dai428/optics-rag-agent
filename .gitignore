@@ -53,3 +53,8 @@ legacy/run_log*.txt
 # data/eval_set.json 记录了未发表论文的实验数值与期望来源，
 # 仅用于本地私有语料的检索评测；公开仓库使用 data/sample_eval_set.json。
 data/eval_set.json
+
+# ── 个人学习笔记与面试准备材料（不随仓库发布）────────
+# notes/ 是基于私有语料的评测报告与面试八股，属于个人资料而非项目交付物。
+# 其中 notes/评测报告.html 引用了未发表论文的文档名与题目内容。
+notes/
