@@ -24,6 +24,11 @@ Langfuse 是什么（给不熟悉的人）
 
 import os
 
+try:
+    from .config import env_value
+except ImportError:
+    from config import env_value
+
 # 全局缓存：handler 只初始化一次（初始化会建后台上报线程，别重复建）
 _handler_cache = None
 _initialized = False
@@ -32,8 +37,8 @@ _initialized = False
 def is_enabled() -> bool:
     """是否配置了 Langfuse（三个必要环境变量齐不齐）。"""
     return bool(
-        os.environ.get("LANGFUSE_PUBLIC_KEY")
-        and os.environ.get("LANGFUSE_SECRET_KEY")
+        env_value("LANGFUSE_PUBLIC_KEY")
+        and env_value("LANGFUSE_SECRET_KEY")
     )
 
 
@@ -54,11 +59,17 @@ def get_langfuse_handler():
         return None
 
     try:
+        # Langfuse SDK 自己从进程环境读取配置；把项目 .env 中的值同步进去。
+        for key in ("LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "LANGFUSE_HOST"):
+            value = env_value(key)
+            if value:
+                os.environ.setdefault(key, value)
+
         from langfuse.langchain import CallbackHandler
 
         _handler_cache = CallbackHandler()
         print("[observability] Langfuse 已启用，链路将上报到 "
-              f"{os.environ.get('LANGFUSE_HOST', 'https://cloud.langfuse.com')}")
+              f"{env_value('LANGFUSE_HOST', 'https://cloud.langfuse.com')}")
     except ImportError:
         print("[observability] 未安装 langfuse，跳过观测（pip install langfuse 可启用）")
     except Exception as e:  # noqa: BLE001

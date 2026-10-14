@@ -31,23 +31,21 @@ from langgraph.graph.message import add_messages
 
 
 def add_queries(existing: Sequence[str], new: Sequence[str]) -> list[str]:
-    """归约函数（reducer）：把「新问句」追加到「已有问句」后面。
+    """追加字符串列表；空列表是显式的「开始新一轮」重置信号。
 
-    为什么需要它？
-      LangGraph 默认对同名字段是「覆盖」语义。给字段标注 Annotated[..., add_queries]
-      后，节点每次返回 {"queries": [...]} 就变成「追加」而非「覆盖」。
-      这与 add_messages 对消息列表的处理是同一个套路。
+    LangGraph checkpointer 会保存整个 State。若没有重置语义，上一轮的 queries 和
+    sub_answers 会永久累积，后续回答就会混入旧内容。begin_turn 节点每轮首先写入
+    空列表，本 reducer 据此清空单轮字段；并行分支仍可继续使用追加语义。
     """
+    if not new:
+        return []
     return list(existing) + list(new)
 
 
 def add_docs(existing: Sequence[Document], new: Sequence[Document]) -> list[Document]:
-    """文档累加 reducer。
-
-    多子问题并行检索时，几个分支会各自返回一批文档；
-    用这个 reducer 让它们「合并」而不是「互相覆盖」。
-    并行分支的写入顺序是不确定的，所以最后统一去重。
-    """
+    """累加并去重本轮文档；空列表用于在新一轮开始时清空旧命中。"""
+    if not new:
+        return []
     merged = list(existing) + list(new)
     seen, out = set(), []
     for d in merged:
@@ -60,16 +58,9 @@ def add_docs(existing: Sequence[Document], new: Sequence[Document]) -> list[Docu
 
 
 def sum_int(existing: int, new: int) -> int:
-    """整数累加 reducer。
-
-    为什么需要？
-      多子问题并行时，每个 retrieve_one 分支都会返回 {"tool_calls": N}。
-      LangGraph 默认规则是「一个 step 内每个字段只能被写一次」，
-      多个并行分支同时写同一个 int 字段会直接抛：
-          InvalidUpdateError: At key 'tool_calls': Can receive only one value per step.
-      加了这个 reducer 后，多个分支的写入会被**相加**，
-      正好符合「累计消耗了多少次检索配额」的语义。
-    """
+    """累加并行分支计数；0 是新一轮开始时的显式重置信号。"""
+    if new == 0:
+        return 0
     return (existing or 0) + (new or 0)
 
 

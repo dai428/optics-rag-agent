@@ -90,7 +90,7 @@ def _touch_session(sid: str, first_message: str = "") -> dict:
             "title": title,
             "created_at": _now(),
             "last_active": _now(),
-            "turns": 0,
+            "turns": 1 if first_message else 0,
         }
         SESSIONS[sid] = s
     else:
@@ -140,7 +140,7 @@ def _map_llm_error(e: Exception) -> HTTPException:
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(..., min_length=1, description="用户问题")
+    message: str = Field(..., min_length=1, max_length=8000, description="用户问题")
     session_id: str = Field(default="default", max_length=64, description="会话 ID")
 
 
@@ -239,13 +239,15 @@ def graph_chat(req: ChatRequest):
 
 @app.post("/chat/reset")
 def chat_reset(session_id: str = "default"):
-    """清空指定会话的记忆（让下一轮从头开始）。"""
-    agent = get_agent()
-    if agent is None:
-        raise HTTPException(status_code=503, detail="未配置 AMD_API_KEY")
-    cp = getattr(agent, "checkpointer", None)
-    if cp is not None and hasattr(cp, "delete_thread"):
-        cp.delete_thread(session_id)
+    """清空指定会话在旧 Agent 与主 LangGraph 中的全部记忆。"""
+    if not _SID.match(session_id):
+        raise HTTPException(status_code=400, detail="session_id 仅允许字母数字与 . _ : -，长度≤64")
+
+    for runtime in (_agent, _graph):
+        cp = getattr(runtime, "checkpointer", None) if runtime is not None else None
+        if cp is not None and hasattr(cp, "delete_thread"):
+            cp.delete_thread(session_id)
+    SESSIONS.pop(session_id, None)
     return {"status": "reset", "session_id": session_id}
 
 
@@ -323,6 +325,7 @@ def api_chat(req: ChatRequest):
 #              此时应等 respond 做 reduce 后再推它的 token。
 #      · rewrite / clarify_check / decompose → 内部中间产物（如"清晰"两字），不给用户看
 NODE_LABELS = {
+    "begin_turn": "准备本轮",
     "rewrite": "查询改写",
     "clarify_check": "澄清检查",
     "clarify": "生成反问",
@@ -337,7 +340,8 @@ ANSWER_NODES = {"clarify", "respond"}
 # 而单个节点（尤其检索 + 生成）实测要几十秒 —— 这段时间界面会毫无反馈。
 # 图的结构是确定的，所以可以按上一个节点的结果推断下一步，提前告诉用户「正在做什么」。
 _NEXT_OF = {
-    "start": "查询改写",
+    "start": "准备本轮",
+    "begin_turn": "查询改写",
     "rewrite": "澄清检查",
     "clarify_check": "问题拆分",     # 若需反问则改判为「生成反问」
     "clarify": "生成反问",

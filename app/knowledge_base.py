@@ -24,6 +24,7 @@
 """
 
 import logging
+import math
 import os
 from pathlib import Path
 
@@ -386,7 +387,10 @@ def rerank(query: str, docs: list, top_n: int | None = None, aggregate: bool = T
     """对候选文档做 CrossEncoder 精排 + 来源加权，返回前 top_n 条。
 
     打分公式：
-        final = CrossEncoder(question, content) × source_weight(file_name)
+        final = CrossEncoder_logit(question, content) + log(source_weight(file_name))
+
+    CrossEncoder 输出可能是负 logit。若直接相乘，负数乘 1.03 会变得更小，
+    “加权”反而成为降权；转到 log-prior 后，无论原始 logit 正负，权重方向都正确。
 
     参数
     ----
@@ -403,7 +407,7 @@ def rerank(query: str, docs: list, top_n: int | None = None, aggregate: bool = T
 
     scored = []
     for doc, raw in zip(docs, scores):
-        final = float(raw) * _source_weight(doc)
+        final = float(raw) + math.log(_source_weight(doc))
         doc.metadata["rerank_score"] = round(final, 4)
         doc.metadata["rerank_raw"] = round(float(raw), 4)
         scored.append((doc, final))

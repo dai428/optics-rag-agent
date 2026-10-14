@@ -47,6 +47,8 @@ try:  # 包方式：app.rag_graph
         CLARIFY_USER_TEMPLATE,
         DECOMPOSE_SYSTEM_PROMPT,
         DECOMPOSE_USER_TEMPLATE,
+        QUERY_REWRITE_SYSTEM_PROMPT,
+        QUERY_REWRITE_USER_TEMPLATE,
         SUB_ANSWER_SYSTEM_PROMPT,
         SUB_ANSWER_USER_TEMPLATE,
         SUMMARIZE_SYSTEM_PROMPT,
@@ -63,6 +65,8 @@ except ImportError:  # 扁平方式：cd app && python rag_graph.py
         CLARIFY_USER_TEMPLATE,
         DECOMPOSE_SYSTEM_PROMPT,
         DECOMPOSE_USER_TEMPLATE,
+        QUERY_REWRITE_SYSTEM_PROMPT,
+        QUERY_REWRITE_USER_TEMPLATE,
         SUB_ANSWER_SYSTEM_PROMPT,
         SUB_ANSWER_USER_TEMPLATE,
         SUMMARIZE_SYSTEM_PROMPT,
@@ -199,6 +203,20 @@ def _invoke_llm(llm, prompt, config, attempts: int = 2) -> str:
 #  节点函数：签名统一为 (state, config) -> dict（返回要更新的字段）
 # ══════════════════════════════════════════════════════════════════
 
+def begin_turn(state: State, config: RunnableConfig) -> dict:
+    """清空当前轮状态，保留 messages 与 history_summary。"""
+    return {
+        "queries": [],
+        "retrieved_docs": [],
+        "sub_questions": [],
+        "sub_answers": [],
+        "need_clarify": False,
+        "clarify_questions": [],
+        "tool_calls": 0,
+        "iterations": 0,
+    }
+
+
 def rewrite_query(state: State, config: RunnableConfig) -> dict:
     """节点 1：查询改写 + 指代消解 + 历史滚动摘要（P1-3）。
 
@@ -217,7 +235,13 @@ def rewrite_query(state: State, config: RunnableConfig) -> dict:
                 updates["history_summary"] = summary
 
     # 首轮：无历史可参考，原话即问句
-    history = _history_text(state.messages[:-1])
+    recent_history = _history_text(state.messages[:-1])
+    history_parts = []
+    if state.history_summary:
+        history_parts.append(f"历史摘要：{state.history_summary}")
+    if recent_history != "（无历史对话）":
+        history_parts.append(recent_history)
+    history = "\n".join(history_parts) if history_parts else "（无历史对话）"
     if history == "（无历史对话）":
         updates["queries"] = [question]
         return updates
@@ -226,8 +250,6 @@ def rewrite_query(state: State, config: RunnableConfig) -> dict:
     if llm is None:
         updates["queries"] = [question]
         return updates
-
-    from prompts import QUERY_REWRITE_SYSTEM_PROMPT, QUERY_REWRITE_USER_TEMPLATE
 
     prompt = [
         SystemMessage(content=cfg.query_system_prompt),
@@ -355,7 +377,8 @@ def decompose(state: State, config: RunnableConfig) -> dict:
     不需要拆时返回「原问题」单元素列表 —— 这样后续并行节点的代码
     不用写两套分支逻辑（统一按列表处理）。
     """
-    question = state.messages[-1].content
+    # 查询改写是检索链路的一部分：拆分与后续检索必须使用改写后的独立问句。
+    question = state.queries[-1] if state.queries else state.messages[-1].content
     llm = _llm("rewrite")
     if llm is None:
         return {"sub_questions": [question]}
@@ -530,6 +553,7 @@ def build_graph(checkpointer=None):
 
     builder = StateGraph(State, input_schema=State)
 
+    builder.add_node("begin_turn", begin_turn)
     builder.add_node("rewrite", rewrite_query)
     builder.add_node("clarify_check", clarify_check)
     builder.add_node("clarify", clarify)
@@ -537,7 +561,8 @@ def build_graph(checkpointer=None):
     builder.add_node("retrieve_one", retrieve_one)   # 并行分支节点
     builder.add_node("respond", respond)
 
-    builder.add_edge(START, "rewrite")
+    builder.add_edge(START, "begin_turn")
+    builder.add_edge("begin_turn", "rewrite")
     builder.add_edge("rewrite", "clarify_check")
     # 条件边：澄清检查后三选一
     builder.add_conditional_edges(

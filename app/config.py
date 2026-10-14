@@ -29,6 +29,15 @@ _ROOT = Path(__file__).parent.parent
 _ENV = _load_env(_ROOT / ".env")
 
 
+def env_value(key: str, default: str = "") -> str:
+    """读取配置：进程环境变量优先，其次项目 .env，最后使用默认值。
+
+    该优先级让本地 `.env`、Docker `--env-file`、CI Secret 和云平台环境变量
+    使用同一套配置入口。
+    """
+    return os.environ.get(key, _ENV.get(key, default))
+
+
 @dataclass
 class Settings:
     """全局配置。所有可调参数集中于此。"""
@@ -40,12 +49,12 @@ class Settings:
     # 父块仓库：按 parent_id 存 JSON，检索命中子块后回来取完整上下文
     parent_store_dir: Path = field(default_factory=lambda: _ROOT / "data" / "parent_store")
     # 模型缓存：重排模型下载到这里（与 HF_HOME 一致，省 C 盘）
-    hf_home: str = field(default_factory=lambda: _ENV.get("HF_HOME", "D:/DevCache/huggingface"))
+    hf_home: str = field(default_factory=lambda: env_value("HF_HOME", "D:/DevCache/huggingface"))
 
     # ── 模型 ──────────────────────────────────────────
-    api_key: str = field(default_factory=lambda: _ENV.get("AMD_API_KEY", ""))
+    api_key: str = field(default_factory=lambda: env_value("AMD_API_KEY", ""))
     base_url: str = field(
-        default_factory=lambda: _ENV.get(
+        default_factory=lambda: env_value(
             "AMD_BASE_URL", "https://developer.amd.com.cn/radeon/api/v1"
         )
     )
@@ -65,10 +74,10 @@ class Settings:
     # 默认值给 DeepSeek-V4-Flash，是为了「开箱即可跑通」，避免新人一上手就撞 90 秒超时。
     # 个人偏好可在 .env 里改 AMD_LLM_MODEL，不改代码。
     llm_model: str = field(
-        default_factory=lambda: _ENV.get("AMD_LLM_MODEL", "DeepSeek-V4-Flash")
+        default_factory=lambda: env_value("AMD_LLM_MODEL", "DeepSeek-V4-Flash")
     )
     embed_model: str = field(
-        default_factory=lambda: _ENV.get("LOCAL_EMBED_MODEL", "BAAI/bge-small-zh-v1.5")
+        default_factory=lambda: env_value("LOCAL_EMBED_MODEL", "BAAI/bge-small-zh-v1.5")
     )
 
     # ── 生成参数 ──────────────────────────────────────
@@ -85,7 +94,7 @@ class Settings:
     # 改写节点用的模型：留空表示与 llm_model 相同。
     # 想让改写更快，可在 .env 里指定一个小模型（如 Qwen3-8B）。
     rewrite_model: str = field(
-        default_factory=lambda: _ENV.get("AMD_REWRITE_MODEL", "")
+        default_factory=lambda: env_value("AMD_REWRITE_MODEL", "")
     )
 
     # ── 检索参数 ──────────────────────────────────────
@@ -113,9 +122,9 @@ class Settings:
     dense_weight: float = 0.6
     sparse_weight: float = 0.4
     # 重排：粗召回后精排，取前 rerank_top_n 条
-    use_rerank: bool = _ENV.get("USE_RERANK", "1") not in ("0", "false", "False")
+    use_rerank: bool = env_value("USE_RERANK", "1") not in ("0", "false", "False")
     rerank_model: str = field(
-        default_factory=lambda: _ENV.get("RERANK_MODEL", "BAAI/bge-reranker-base")
+        default_factory=lambda: env_value("RERANK_MODEL", "BAAI/bge-reranker-base")
     )
     # 重排后保留条数。5 条是「够用」与「不撑爆上下文」的平衡点：
     #   父块平均 ~2000 字，5 条 = 1 万字上下文，对 27B 模型很舒适。

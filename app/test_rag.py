@@ -27,7 +27,10 @@ def _has_api_key() -> bool:
 
 
 def t1_knowledge_base():
-    from .knowledge_base import corpus_info, get_retriever
+    try:
+        from .knowledge_base import corpus_info, get_retriever
+    except ImportError:
+        from knowledge_base import corpus_info, get_retriever
 
     info = corpus_info()
     assert info["chunks"] > 0, "知识库为空，检查 docs/ 目录"
@@ -35,19 +38,22 @@ def t1_knowledge_base():
     assert len(hits) == 3, f"应命中 3 条，实际 {len(hits)}"
     joined = "".join(h.page_content for h in hits)
     assert ("LCVR" in joined or "液晶" in joined), "检索未命中 LCVR 相关内容"
-    print(f"[T1] ✅ 知识库检索通过：{info['chunks']} 个片段，命中 {len(hits)} 条，语义相关")
+    print(f"[T1] [PASS] 知识库检索通过：{info['chunks']} 个片段，命中 {len(hits)} 条，语义相关")
 
 
 def t2_api_no_key():
     from fastapi.testclient import TestClient
 
-    from . import main
+    try:
+        from . import main
+    except ImportError:
+        import main
 
     c = TestClient(main.app)
     assert c.get("/health").json()["status"] == "ok"
     d = c.get("/documents").json()
     assert d["chunks"] > 0
-    print(f"[T2] ✅ API 接口通过：/health=ok，/documents 返回 {d['chunks']} 片段、{len(d['documents'])} 文档")
+    print(f"[T2] [PASS] API 接口通过：/health=ok，/documents 返回 {d['chunks']} 片段、{len(d['documents'])} 文档")
 
 
 def _chat(client, message: str, session_id: str, tries: int = 6):
@@ -67,11 +73,14 @@ def _chat(client, message: str, session_id: str, tries: int = 6):
 
 def t3_session_isolation_and_memory():
     if not _has_api_key():
-        print("[T3] ⏭️ 跳过（未配置 AMD_API_KEY）")
+        print("[T3] [SKIP] 跳过（未配置 AMD_API_KEY）")
         return
     from fastapi.testclient import TestClient
 
-    from . import main
+    try:
+        from . import main
+    except ImportError:
+        import main
 
     c = TestClient(main.app)
 
@@ -81,20 +90,20 @@ def t3_session_isolation_and_memory():
         # 会话 A：追问 —— 应记得（多轮记忆）
         a = _chat(c, "我叫什么名字？", "sess-A")
         assert "张万森" in a["answer"], f"会话 A 未记住名字：{a['answer'][:80]}"
-        print("[T3a] ✅ 多轮记忆通过：会话 A 记得用户名字")
+        print("[T3a] [PASS] 多轮记忆通过：会话 A 记得用户名字")
 
         # 会话 B：全新会话 —— 不该知道 A 的名字（会话隔离）
         b = _chat(c, "我叫什么名字？", "sess-B")
         assert "张万森" not in b["answer"], f"会话 B 泄漏了 A 的上下文：{b['answer'][:80]}"
-        print("[T3b] ✅ 会话隔离通过：会话 B 不知道 A 的名字")
+        print("[T3b] [PASS] 会话隔离通过：会话 B 不知道 A 的名字")
 
         # 专业问题应触发检索
         q = _chat(c, "LCVR 是什么？相比传统旋转波片有什么优势？", "sess-A")
         assert q["used_retrieval"], "专业问题未触发知识库检索"
-        print("[T3c] ✅ 工具自决检索通过：专业问题触发了 search_optics_knowledge_base")
+        print("[T3c] [PASS] 工具自决检索通过：专业问题触发了 search_optics_knowledge_base")
     except AssertionError as e:
         if "429" in str(e):
-            print("[T3] ⏭️ 跳过（AMD 共享模型持续限流 429，稍后重跑即可）")
+            print("[T3] [SKIP] 跳过（AMD 共享模型持续限流 429，稍后重跑即可）")
             return
         raise
 
