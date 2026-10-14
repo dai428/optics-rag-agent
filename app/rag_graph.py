@@ -84,6 +84,16 @@ MAX_SUB_QUESTIONS = 3     # 一个复合问题最多拆几个子问题
 # 历史摘要触发阈值：对话超过这么多条消息，就把旧的部分压缩成摘要
 SUMMARIZE_TRIGGER = 8
 
+# 证据不足时的标准回复。给出「为什么没答」比含糊的「未找到」更有用：
+# 用户能据此判断是自己问得太宽泛，还是知识库里确实没有这份材料。
+ABSTAIN_TEMPLATE = (
+    "知识库中没有找到足以支撑回答的证据（{reason}）。\n\n"
+    "建议：\n"
+    "1. 换一种问法，或补充更具体的关键词（如具体参数名、器件名）；\n"
+    "2. 确认相关文档是否已经上传并完成索引；\n"
+    "3. 如果确实没有这份材料，我不会基于猜测作答。"
+)
+
 # ── 轻量规则：判断这一句是否需要检索 ────────────────────────────────
 # 为什么不全交给模型判断？
 #   一次模型调用约 2~5 秒。用 10 行规则先挡掉闲聊，能省下一次调用，
@@ -447,24 +457,45 @@ def retrieve_one(state, config: RunnableConfig) -> dict:
     tool_calls = _get("tool_calls", 0) or 0
 
     try:
-        from .knowledge_base import search
-    except ImportError:
-        from knowledge_base import search
+        try:
+            from .knowledge_base import retrieve, search
+        except ImportError:
+            from knowledge_base import retrieve, search
+    except Exception as e:  # noqa: BLE001
+        return {"sub_answers": [f"（{question}）检索模块不可用：{e}"]}
 
     # P1-4 预算控制：已达上限就不再检索（返回提示，让模型别瞎编）
     if tool_calls >= MAX_TOOL_CALLS:
         return {"sub_answers": [f"（{question}）已达检索调用上限，本轮未再检索。"]}
 
+    # 先做一次带拒答判断的检索，拿到「证据是否充分」与结构化引用
     try:
-        docs = search(question, k=settings.rerank_top_n)
+        result = retrieve(question, k=settings.rerank_top_n)
     except Exception as e:  # noqa: BLE001 —— 单个子问题失败不拖垮整轮
         return {"sub_answers": [f"（{question}）检索失败：{e}"]}
+
+    if result.abstain:
+        # 证据不足时明确拒答，而不是把无关片段硬塞给模型让它编
+        return {
+            "sub_answers": [ABSTAIN_TEMPLATE.format(reason=result.reason)],
+            "retrieved_docs": result.docs,
+            "abstained": True,
+            "abstain_reason": result.reason,
+            "tool_calls": tool_calls + 1,
+        }
+
+    # 命中后回溯父块，给模型更完整的上下文
+    try:
+        docs = search(question, k=settings.rerank_top_n)
+    except Exception as e:  # noqa: BLE001
+        docs = result.docs
 
     context = _build_context(docs)
     llm = _llm("answer")
     if llm is None:
         return {
             "sub_answers": [f"（{question}）未配置 API Key，无法生成回答。"],
+            "retrieved_docs": docs,
             "tool_calls": tool_calls + 1,
         }
 
@@ -476,11 +507,33 @@ def retrieve_one(state, config: RunnableConfig) -> dict:
         ans = _invoke_llm(llm, prompt, config)
     except Exception as e:  # noqa: BLE001
         ans = f"（{question}）生成失败：{str(e)[:120]}"
+
+    # 数字核验：把回答里的数字与证据原文比对，发现疑似编造时附加提示。
+    # 这是纯字符串比对，不额外调用模型，成本可忽略。
+    try:
+        try:
+            from .tools.optics import verify_numbers
+        except ImportError:
+            from tools.optics import verify_numbers
+
+        check = verify_numbers(ans, [d.page_content for d in docs])
+        if check.get("ok") and check.get("unsupported"):
+            ans += (
+                f"\n\n⚠️ 数字自查：以下数值未在检索到的证据中出现，请以原文为准 —— "
+                + "、".join(check["unsupported"][:8])
+            )
+    except Exception:  # noqa: BLE001 —— 自查失败不影响回答
+        pass
+
     # ⚠️ 必须把 docs 一并写回 state：
     #    retrieved_docs 是对外可观测的字段（接口返回「命中片段数」、RAGAS 评测取上下文），
     #    只写 sub_answers 会让上游完全看不到「这轮到底检索到了什么」。
     #    多分支并行时靠 state.add_docs reducer 自动累加去重。
-    return {"sub_answers": [ans], "retrieved_docs": docs, "tool_calls": tool_calls + 1}
+    return {
+        "sub_answers": [ans],
+        "retrieved_docs": docs,
+        "tool_calls": tool_calls + 1,
+    }
 
 
 def respond(state: State, config: RunnableConfig) -> dict:
@@ -510,6 +563,11 @@ def respond(state: State, config: RunnableConfig) -> dict:
         return {"messages": [AIMessage(content=answers[0])]}
 
     if not answers:
+        # 所有分支都拒答时，给出统一的解释，而不是含糊的「未找到」
+        if state.abstained:
+            return {"messages": [AIMessage(content=ABSTAIN_TEMPLATE.format(
+                reason=state.abstain_reason or "检索结果相关度不足"
+            ))]}
         return {"messages": [AIMessage(content="知识库中未找到相关答案。")]}
 
     # ── 情况 3：多子问题，reduce 汇总 ──

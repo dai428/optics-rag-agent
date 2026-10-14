@@ -1,4 +1,10 @@
-"""Phase 0 regression tests: configuration, package imports, and turn-state isolation."""
+"""Phase 0 回归测试：配置优先级、包模式导入、单轮状态隔离。
+
+这三个用例各自对应一个已修复的真实缺陷，属于「修完必须锁死」的护栏：
+  1. 进程环境变量必须优先于 .env（否则 Docker / CI 传参不生效）
+  2. app.rag_graph 在包模式下多轮对话不得抛 ModuleNotFoundError
+  3. 第二轮不得混入第一轮的子答案与检索结果（跨轮状态污染）
+"""
 
 from __future__ import annotations
 
@@ -15,12 +21,18 @@ from app.state import add_docs, add_queries, sum_int
 
 
 class _Reply:
+    """模拟模型返回值：只关心 .content。"""
+
     def __init__(self, content: str):
         self.content = content
 
 
 class _FakeLLM:
-    """Deterministic model used to test graph wiring without an external API."""
+    """确定性假模型，用于在不调用外部 API 的前提下测试图接线是否正确。
+
+    按系统提示词的特征词分派行为，因此改提示词文案时这里也要同步，
+    这本身是一种有价值的耦合：它保证「节点确实用了我们以为的那个提示词」。
+    """
 
     def invoke(self, prompt, config=None):
         system = getattr(prompt[0], "content", "") if isinstance(prompt, list) and prompt else ""
@@ -42,12 +54,16 @@ class _FakeLLM:
 
 
 class ConfigTests(unittest.TestCase):
+    """配置读取优先级。"""
+
     def test_process_environment_has_priority(self):
         with patch.dict(os.environ, {"RAG_TEST_SETTING": "from-process"}, clear=False):
             self.assertEqual(env_value("RAG_TEST_SETTING", "fallback"), "from-process")
 
 
 class ReducerTests(unittest.TestCase):
+    """reducer 的重置语义：空列表 / 0 代表「开始新一轮」。"""
+
     def test_empty_update_resets_turn_lists(self):
         doc = Document(page_content="old")
         self.assertEqual(add_queries(["old"], []), [])
@@ -56,6 +72,8 @@ class ReducerTests(unittest.TestCase):
 
 
 class GraphRegressionTests(unittest.TestCase):
+    """端到端跑一次两轮对话，验证包模式可用且状态不串轮。"""
+
     def test_package_mode_rewrite_and_multi_turn_state_isolation(self):
         fake = _FakeLLM()
 

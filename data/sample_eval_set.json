@@ -1,0 +1,132 @@
+{
+  "meta": {
+    "name": "公开示例语料检索评测集",
+    "date": "2026-10-14",
+    "corpus": "data/sample_docs（3 篇脱敏教学示例，可随仓库公开）",
+    "note": "expected_sources = 应被召回的文档（任一命中即算相关）；keywords = 命中内容中应出现的关键词（全部命中才算通过，避免「答错口径也算对」）。",
+    "split": "dev",
+    "revision_note": "首版。与私有语料评测集（data/eval_set.json）分离，用于公开复现；关键词改为「全部命中」口径，防止部分命中被误判为正确。"
+  },
+  "cases": [
+    {
+      "id": 1,
+      "q": "Stokes 参量里的 S3 表示什么？",
+      "expected_sources": ["偏振测量基础.md"],
+      "keywords": ["圆偏振"]
+    },
+    {
+      "id": 2,
+      "q": "偏振度 DOP 的计算公式是什么？",
+      "expected_sources": ["偏振测量基础.md"],
+      "keywords": ["DOP", "S₀"]
+    },
+    {
+      "id": 3,
+      "q": "测量矩阵条件数 κ2 的理论下界是多少？",
+      "expected_sources": ["偏振测量基础.md"],
+      "keywords": ["1.732", "√3"]
+    },
+    {
+      "id": 4,
+      "q": "为什么测量次数 N=4 条件数最优却不一定是最佳工程选择？",
+      "expected_sources": ["偏振测量基础.md"],
+      "keywords": ["冗余"]
+    },
+    {
+      "id": 5,
+      "q": "重建误差和条件数之间是什么关系？",
+      "expected_sources": ["偏振测量基础.md"],
+      "keywords": ["放大"]
+    },
+    {
+      "id": 6,
+      "q": "LCVR 相比传统机械旋转波片有哪些优势？",
+      "expected_sources": ["偏振测量基础.md"],
+      "keywords": ["无机械", "切换"]
+    },
+    {
+      "id": 7,
+      "q": "LCVR 的相位延迟量与波长、电压的关系式是什么？",
+      "expected_sources": ["偏振测量基础.md"],
+      "keywords": ["Δn", "d", "λ"]
+    },
+    {
+      "id": 8,
+      "q": "LCVR 的主要缺点是什么？",
+      "expected_sources": ["偏振测量基础.md"],
+      "keywords": ["温度"]
+    },
+    {
+      "id": 9,
+      "q": "延迟量随温度变化的经验模型是什么形式？",
+      "expected_sources": ["偏振测量基础.md"],
+      "keywords": ["温度系数", "T₀"]
+    },
+    {
+      "id": 10,
+      "q": "温度补偿有哪两类常见对策？",
+      "expected_sources": ["偏振测量基础.md"],
+      "keywords": ["硬件补偿", "建模补偿"]
+    },
+    {
+      "id": 11,
+      "q": "LCVR 偏振计的标定流程包含哪些步骤？",
+      "expected_sources": ["偏振测量基础.md"],
+      "keywords": ["标定", "条件数"]
+    },
+    {
+      "id": 12,
+      "q": "示例实验里 25℃ 和 40℃ 的测量矩阵条件数分别是多少？",
+      "expected_sources": ["示例实验_条件数温度标定.md"],
+      "keywords": ["1.87", "2.14"]
+    },
+    {
+      "id": 13,
+      "q": "温度从 25℃ 升到 40℃ 条件数恶化了多少？",
+      "expected_sources": ["示例实验_条件数温度标定.md"],
+      "keywords": ["14.4%"]
+    },
+    {
+      "id": 14,
+      "q": "示例实验里 LCVR-A 在 532 nm 下的延迟量随温度变化了多少？",
+      "expected_sources": ["示例实验_条件数温度标定.md", "示例_延迟量温度数据.csv"],
+      "keywords": ["2.0%"]
+    },
+    {
+      "id": 15,
+      "q": "示例实验用的光源波长和测量次数 N 是多少？",
+      "expected_sources": ["示例实验_条件数温度标定.md"],
+      "keywords": ["532", "N", "6"]
+    },
+    {
+      "id": 16,
+      "q": "蒙特卡洛重建验证用了多少组已知偏振态、噪声是多少？",
+      "expected_sources": ["示例实验_条件数温度标定.md"],
+      "keywords": ["30", "0.005"]
+    },
+    {
+      "id": 17,
+      "q": "示例实验里 40℃ 的偏振角误差均值是多少？",
+      "expected_sources": ["示例实验_条件数温度标定.md"],
+      "keywords": ["0.34"]
+    },
+    {
+      "id": 18,
+      "q": "示例实验有哪些已知问题和待办事项？",
+      "expected_sources": ["示例实验_条件数温度标定.md"],
+      "keywords": ["待办"]
+    },
+    {
+      "id": 19,
+      "q": "CSV 数据表里 40℃ 时 LCVR-A 在 6.5V 的延迟量是多少？",
+      "expected_sources": ["示例_延迟量温度数据.csv"],
+      "keywords": ["201.5"]
+    },
+    {
+      "id": 20,
+      "q": "条件数越接近 1 说明什么？",
+      "expected_sources": ["偏振测量基础.md"],
+      "keywords": ["越好"]
+    }
+  ]
+}

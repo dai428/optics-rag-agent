@@ -118,5 +118,12 @@ class State(InputState):
     iterations: Annotated[int, last_int] = 0
     """图迭代轮次。并行的多个分支可能各写一次，取最后一次即可。"""
 
+    # ── 证据充分性（拒答）────────────────────────────
+    abstained: bool = False
+    """是否因证据不足而拒答。任一并行分支判定证据不足即为真。"""
+
+    abstain_reason: str = ""
+    """拒答原因，用于向用户解释「为什么没答」而不是含糊其辞。"""
+
     _extra: dict[str, Any] = field(default_factory=dict, repr=False)
     """预留：想加「是否兜底」等字段时往这里加。"""

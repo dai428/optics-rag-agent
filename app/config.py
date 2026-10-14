@@ -44,10 +44,39 @@ class Settings:
 
     # ── 路径 ──────────────────────────────────────────
     root_dir: Path = _ROOT
-    docs_dir: Path = field(default_factory=lambda: _ROOT / "data" / "docs")
-    chroma_dir: Path = field(default_factory=lambda: _ROOT / "data" / "chroma_db")
+    # 语料目录可用 CORPUS_DIR 覆盖：本地私有材料放 data/docs，
+    # 公开演示用 data/sample_docs（脱敏，可随仓库发布）。
+    docs_dir: Path = field(
+        default_factory=lambda: Path(env_value("CORPUS_DIR", str(_ROOT / "data" / "docs")))
+    )
+    chroma_dir: Path = field(
+        default_factory=lambda: Path(env_value("CHROMA_DIR", str(_ROOT / "data" / "chroma_db")))
+    )
     # 父块仓库：按 parent_id 存 JSON，检索命中子块后回来取完整上下文
-    parent_store_dir: Path = field(default_factory=lambda: _ROOT / "data" / "parent_store")
+    parent_store_dir: Path = field(
+        default_factory=lambda: Path(
+            env_value("PARENT_STORE_DIR", str(_ROOT / "data" / "parent_store"))
+        )
+    )
+    # 索引清单：记录语料指纹、切块参数与嵌入模型，支撑增量与一致性校验
+    manifest_path: Path = field(
+        default_factory=lambda: Path(
+            env_value("MANIFEST_PATH", str(_ROOT / "data" / "index_manifest.json"))
+        )
+    )
+    # 会话与反馈数据库（SQLite，单文件，零运维）
+    database_path: Path = field(default_factory=lambda: _ROOT / "data" / "app.db")
+    # 公开示例语料（脱敏，可提交到仓库）
+    sample_docs_dir: Path = field(default_factory=lambda: _ROOT / "data" / "sample_docs")
+    # 检索评测集：默认私有集；公开演示用 data/sample_eval_set.json
+    eval_set_path: Path = field(
+        default_factory=lambda: Path(
+            env_value("EVAL_SET", str(_ROOT / "data" / "eval_set.json"))
+        )
+    )
+    sample_eval_set_path: Path = field(
+        default_factory=lambda: _ROOT / "data" / "sample_eval_set.json"
+    )
     # 模型缓存：重排模型下载到这里（与 HF_HOME 一致，省 C 盘）
     hf_home: str = field(default_factory=lambda: env_value("HF_HOME", "D:/DevCache/huggingface"))
 
@@ -150,6 +179,51 @@ class Settings:
     )
 
     collection_name: str = "optics_kb"
+
+    # ── 语料扫描 ──────────────────────────────────────
+    # ⚠️ pathlib 的 "**/*" 只匹配「至少一层子目录」下的文件，不含 docs 根目录，
+    #    所以必须显式补上顶层模式，否则往根目录丢文件会「凭空消失」。
+    corpus_patterns: tuple = (
+        "*.md", "*.markdown", "*.txt", "*.csv", "*.pdf", "*.docx",
+        "**/*.md", "**/*.markdown", "**/*.txt", "**/*.csv", "**/*.pdf", "**/*.docx",
+    )
+
+    # ── 检索门控（无证据时拒答）─────────────────────────
+    # CrossEncoder 原始 logit 通常在 [-10, 10]；低于该阈值视为「没有相关证据」。
+    # 设为 None 可关闭拒答（始终让模型基于检索结果作答）。
+    abstain_threshold: float | None = field(
+        default_factory=lambda: _float_or_none(env_value("ABSTAIN_THRESHOLD", "-6.0"))
+    )
+
+    # ── 上传与安全 ────────────────────────────────────
+    max_upload_mb: int = field(default_factory=lambda: _int_env("MAX_UPLOAD_MB", 20))
+    # 每轮对话最多允许的提问次数（用于简单限流，0 表示不限制）
+    rate_limit_per_minute: int = field(
+        default_factory=lambda: _int_env("RATE_LIMIT_PER_MINUTE", 0)
+    )
+    # 可选访问令牌：设置后所有 /api/** 写接口都需要 Authorization: Bearer <token>
+    access_token: str = field(default_factory=lambda: env_value("APP_ACCESS_TOKEN", ""))
+
+    # ── 会话 ──────────────────────────────────────────
+    history_max_turns: int = 20     # 会话历史最多保留的轮数（用于上下文裁剪）
+    max_sessions: int = 500         # 单实例最多保留的会话数，防止内存无界增长
+
+
+def _int_env(key: str, default: int) -> int:
+    try:
+        return int(env_value(key, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _float_or_none(key: str) -> float | None:
+    raw = key.strip()
+    if not raw or raw.lower() in ("none", "off", "false"):
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
 
 
 settings = Settings()

@@ -16,10 +16,27 @@ __pycache__/
 *.pyc
 .idea/
 
+# ── 公开示例语料的派生产物 ────────────────────────────
+# 说明：data/sample_docs/ 与 data/sample_eval_set.json 是**脱敏教学示例**，
+# 需要提交，供面试官 clone 后一键复现。但它们跑出来的索引属于派生产物，
+# 体积大且可重建，因此单独忽略（与私有语料同理）。
+data/sample_chroma_db/
+data/sample_parent_store/
+data/sample_index_manifest.json
+
+# ── 索引清单与运行期数据 ──────────────────────────────
+# 清单记录了本机语料指纹，换机器即失效，不应入库
+data/index_manifest.json
+# SQLite 会话/反馈/日志数据库
+data/app.db
+data/app.db-wal
+data/app.db-shm
+
 # 运行期产物（本地临时文件，不入库）
 *.log
 snap_probe.txt
 eval_report*.json
+sample_eval_report.json
 htmlcov/
 .pytest_cache/
 
