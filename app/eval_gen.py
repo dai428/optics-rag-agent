@@ -45,12 +45,30 @@ from pathlib import Path
 
 from langchain_core.messages import HumanMessage
 
-import config
-import rag_graph as g
+try:  # 包方式：python -m app.eval_gen（在项目根目录执行）
+    from . import config
+    from . import rag_graph as g
+except ImportError:  # 扁平方式：cd app && python eval_gen.py
+    import config
+    import rag_graph as g  # type: ignore[no-redef]
 
 ROOT = Path(__file__).parent.parent
-EVAL_SET = ROOT / "data" / "eval_set.json"
 OUT_DIR = ROOT / "data"
+
+
+def _eval_set_path() -> Path:
+    """选择生成层评测用的题目集。
+
+    与 eval_rag.py 保持一致：私有评测集（含未发表论文数值）不入 Git，
+    公开克隆里不存在，此时回退到公开示例评测集。
+    """
+    private = config.settings.eval_set_path
+    if private.exists():
+        return private
+    return config.settings.sample_eval_set_path
+
+
+EVAL_SET = _eval_set_path()
 
 
 # ── 数据采集：跑图，收集 (问题, 答案, 检索上下文) ──────────────

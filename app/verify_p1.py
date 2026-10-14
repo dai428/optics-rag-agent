@@ -27,7 +27,10 @@ os.environ.setdefault("NO_PROXY", "*")
 
 from langchain_core.messages import AIMessage, HumanMessage
 
-import rag_graph as g
+try:  # 包方式：python -m app.verify_p1（在项目根目录执行）
+    from . import rag_graph as g
+except ImportError:  # 扁平方式：cd app && python verify_p1.py
+    import rag_graph as g  # type: ignore[no-redef]
 
 
 # ⚠️ 坑：LangGraph 的 thread_id 不要用中文/空格等非 ASCII 字符。
