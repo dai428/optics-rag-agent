@@ -85,9 +85,20 @@ class GraphRegressionTests(unittest.TestCase):
                 )
             ]
 
+        # ⚠️ 必须同时打补丁 retrieve 与 search：
+        #    retrieve_one 现在先用 retrieve() 判断证据充分性，命中后才调 search() 回溯父块。
+        #    只补 search 会让 retrieve 打到真实索引，检索结果不可控（曾导致断言拿到 5 条真实文档）。
+        def fake_retrieve(query: str, k: int | None = None):
+            from app.knowledge_base import RetrievalResult
+
+            docs = fake_search(query, k)
+            return RetrievalResult(
+                query=query, docs=docs, top_score=0.95, abstain=False
+            )
+
         with patch.object(rag_graph, "_llm", return_value=fake), patch(
-            "app.knowledge_base.search", side_effect=fake_search
-        ):
+            "app.knowledge_base.retrieve", side_effect=fake_retrieve
+        ), patch("app.knowledge_base.search", side_effect=fake_search):
             graph = rag_graph.build_graph_with_memory()
             config = {"configurable": {"thread_id": "phase0-regression"}}
 

@@ -2,11 +2,16 @@
 
 这些测试用 FastAPI 的 TestClient，不依赖外部模型服务：需要模型的部分用
 monkeypatch 替换，从而保证在 CI 里能稳定、快速地跑完。
+
+⚠️ 隔离要求（曾经踩过坑）
+   测试绝不能写到真实语料目录。最初用 `os.environ.setdefault("CORPUS_DIR", ...)`
+   试图重定向，但 settings 是模块级单例、在导入时就固化了路径，且 setdefault
+   在环境变量已存在时不生效 —— 结果是上传用例把测试文件写进了 data/docs。
+   现在改为在 setUp 里**直接 patch settings.docs_dir**，并显式断言它落在临时目录。
 """
 
 from __future__ import annotations
 
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,19 +19,37 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-# 测试期间把数据库指到临时文件，避免污染开发数据
-_TMP_DIR = tempfile.TemporaryDirectory()
-os.environ.setdefault("CORPUS_DIR", str(Path(_TMP_DIR.name) / "docs"))
-
 from app import main, storage  # noqa: E402
+from app.config import settings  # noqa: E402
 from app.storage import Database  # noqa: E402
 
+# 每个测试类一个独立的临时目录
+_TMP_DIR = tempfile.TemporaryDirectory()
+_TEST_DOCS = Path(_TMP_DIR.name) / "docs"
+_TEST_DOCS.mkdir(parents=True, exist_ok=True)
 
-class ApiTests(unittest.TestCase):
+
+class _IsolatedTestBase(unittest.TestCase):
+    """把语料目录与数据库都指向临时位置的测试基类。"""
+
+    def setUp(self):
+        self._docs_patch = patch.object(settings, "docs_dir", _TEST_DOCS)
+        self._docs_patch.start()
+        self.addCleanup(self._docs_patch.stop)
+
+        # 防御性断言：确认语料目录确实被重定向，避免污染真实数据
+        self.assertEqual(
+            Path(settings.docs_dir).resolve(),
+            _TEST_DOCS.resolve(),
+            "测试未成功重定向语料目录，存在污染真实数据的风险",
+        )
+
+        storage._db_singleton = Database(Path(_TMP_DIR.name) / f"{self.id()}.db")
+
+
+class ApiTests(_IsolatedTestBase):
     @classmethod
     def setUpClass(cls):
-        Path(os.environ["CORPUS_DIR"]).mkdir(parents=True, exist_ok=True)
-        storage._db_singleton = Database(Path(_TMP_DIR.name) / "api.db")
         cls.client = TestClient(main.app)
 
     @classmethod
@@ -34,7 +57,13 @@ class ApiTests(unittest.TestCase):
         _TMP_DIR.cleanup()
 
     def setUp(self):
-        storage._db_singleton = Database(Path(_TMP_DIR.name) / "api.db")
+        super().setUp()
+        # 每个用例清空临时语料目录，避免用例间互相看到对方上传的文件
+        for path in sorted(_TEST_DOCS.rglob("*"), reverse=True):
+            if path.is_file():
+                path.unlink()
+            elif path.is_dir() and path != _TEST_DOCS:
+                path.rmdir()
 
     # ── 探针 ──────────────────────────────────────────────
     def test_health_is_lightweight(self):
@@ -154,7 +183,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body["status"], "uploaded")
-        self.assertTrue((Path(os.environ["CORPUS_DIR"]) / "note.md").exists())
+        self.assertTrue((_TEST_DOCS / "note.md").exists())
 
     def test_delete_missing_document_returns_404(self):
         response = self.client.delete("/api/documents/does_not_exist.md")
@@ -192,9 +221,9 @@ class ApiTests(unittest.TestCase):
             self.assertEqual(self.client.get("/api/sessions").status_code, 200)
 
 
-class RateLimitTests(unittest.TestCase):
+class RateLimitTests(_IsolatedTestBase):
     def setUp(self):
-        storage._db_singleton = Database(Path(_TMP_DIR.name) / "rate.db")
+        super().setUp()
         self.client = TestClient(main.app)
         main._rate_buckets.clear()
 

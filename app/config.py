@@ -193,10 +193,16 @@ class Settings:
     )
 
     # ── 检索门控（无证据时拒答）─────────────────────────
-    # CrossEncoder 原始 logit 通常在 [-10, 10]；低于该阈值视为「没有相关证据」。
-    # 设为 None 可关闭拒答（始终让模型基于检索结果作答）。
+    # ⚠️ 阈值的量纲取决于重排模型：
+    #    BAAI/bge-reranker-base 输出的是 **sigmoid 概率（0~1）**，不是 logit。
+    #    实测（scripts/calibrate_threshold.py）：
+    #      相关问题 0.853 ~ 1.056；无关问题 0.030 ~ 0.187
+    #    两类之间空隙很宽，取几何中点 0.40 对「私有语料」与「公开示例语料」
+    #    都能做到「相关题全通过 + 无关题全拒答」。
+    #    换用输出 logit 的重排模型时，必须用上面的标定脚本重测，否则阈值完全失效。
+    #    设为 None 可关闭拒答（始终让模型基于检索结果作答）。
     abstain_threshold: float | None = field(
-        default_factory=lambda: _float_or_none(env_value("ABSTAIN_THRESHOLD", "-6.0"))
+        default_factory=lambda: _float_or_none(env_value("ABSTAIN_THRESHOLD", "0.40"))
     )
 
     # ── 上传与安全 ────────────────────────────────────
