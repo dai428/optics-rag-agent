@@ -39,6 +39,10 @@ eval_report*.json
 sample_eval_report.json
 htmlcov/
 .pytest_cache/
+# 消融探针的输出（每次跑都会变，属于运行期产物；
+# 探针脚本本身在 scripts/ 里，是入库的）
+data/probe_ablation.json
+data/probe_source_prior.json
 
 # 生成层评测中间产物：eval_gen_raw.json 含语料原文，绝不能提交
 data/eval_gen_raw.json
