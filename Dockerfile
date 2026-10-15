@@ -36,7 +36,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
 COPY tests/ ./tests/
-COPY data/eval_set.json ./data/
+# ⚠️ 不要 COPY data/eval_set.json：
+#    它是私有评测集（含未发表论文数值），**不入 Git**，公开克隆里根本不存在。
+#    曾因此写死一行 `COPY data/eval_set.json`，导致任何人 `docker compose up --build`
+#    都在这一步直接失败（"not found"）。容器内评测统一走公开示例评测集。
 # 公开示例语料随镜像提供：这样容器起来就能提问，不需要用户先准备数据
 COPY data/sample_docs/ ./data/docs/
 COPY data/sample_eval_set.json ./data/

@@ -21,6 +21,9 @@ data/chroma_db/
 data/parent_store/
 data/models/
 data/eval_gen_raw.json
+# 私有评测集：含未发表论文数值，不入 Git、也绝不进镜像。
+# 容器内评测走 data/sample_eval_set.json（脱敏示例）。
+data/eval_set.json
 
 # 参考资料与评测中间产物
 refs/
