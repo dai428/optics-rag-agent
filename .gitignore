@@ -68,3 +68,7 @@ notes/
 # é…ç½®å·²ä¿å­˜åœ¨æœ¬åœ° .github/workflows/ci.yml ä¸ D:\Desktop\rag-demo-ci-backup\ã€‚
 # è¡¥é½æƒé™ï¼ˆgh auth refresh -s workflowï¼‰åï¼Œç§»é™¤æœ¬è§„åˆ™å¹¶é‡æ–°æäº¤è¯¥æ–‡ä»¶ã€‚
 .github/workflows/
+
+# ±¾µØä¯ÀÀÆ÷½ØÍ¼£ºÒıÓÃ¿¨Æ¬»á±©Â¶Ë½ÓĞÓïÁÏÎÄ¼şÃû£¬²»Èë¿â
+browser-screenshots/
+learn/L3_docker/tools/offline_pull.py

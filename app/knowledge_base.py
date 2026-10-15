@@ -499,7 +499,14 @@ class RetrievalResult:
     candidate_count: int = 0
 
     def citations(self) -> list[dict]:
-        """把命中文档转成结构化引用，供前端渲染与程序核验。"""
+        """把命中文档转成结构化引用，供前端渲染与程序核验。
+
+        ⚠️ 拒答时返回空列表：证据不足的片段不该出现在引用卡片里，
+           否则前端会显示「引用 N 条」，而回答本身是「没找到证据」——
+           自相矛盾，比不显示更误导。
+        """
+        if self.abstain:
+            return []
         return build_citations(self.docs)
 
 

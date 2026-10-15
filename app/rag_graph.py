@@ -220,10 +220,19 @@ def begin_turn(state: State, config: RunnableConfig) -> dict:
         "retrieved_docs": [],
         "sub_questions": [],
         "sub_answers": [],
+        "ungrounded_questions": [],
         "need_clarify": False,
         "clarify_questions": [],
         "tool_calls": 0,
         "iterations": 0,
+        # ⚠️ 拒答字段必须一起重置：
+        #   上一轮拒答后 abstained=True 会随 checkpointer 长期留在 state 里，
+        #   不重置就会出现「这一轮明明检索到了证据，接口仍报 abstained=True」
+        #   的跨轮污染（2026-10-15 实测复现）。
+        # ⚠️ 写 None 而不是 False：or_bool 里 None 才是「清零」哨兵，
+        #   False 只能是「我这支没拒答」的合法否定票（详见 app/state.py）。
+        "abstained": None,
+        "abstain_reason": "",
     }
 
 
@@ -475,10 +484,14 @@ def retrieve_one(state, config: RunnableConfig) -> dict:
         return {"sub_answers": [f"（{question}）检索失败：{e}"]}
 
     if result.abstain:
-        # 证据不足时明确拒答，而不是把无关片段硬塞给模型让它编
+        # 证据不足时明确拒答，而不是把无关片段硬塞给模型让它编。
+        # ⚠️ 拒答文案不进 sub_answers：它是「没答」的说明，不是答案素材。
+        #    混进去会让 reduce 把「无证据」汇总成「看起来有结论」的回答。
+        # ⚠️ 也**不写 retrieved_docs**：这些低分片段不足以支撑回答，暴露成引用卡片
+        #    反而误导用户；且 add_docs([]) 是「重置」语义，并行兄弟分支写了 [] 会
+        #    连带抹掉别的分支已命中的合法文档（同一步内顺序不定 → 引用时有时无）。
         return {
-            "sub_answers": [ABSTAIN_TEMPLATE.format(reason=result.reason)],
-            "retrieved_docs": result.docs,
+            "ungrounded_questions": [question],
             "abstained": True,
             "abstain_reason": result.reason,
             "tool_calls": tool_calls + 1,
@@ -536,17 +549,43 @@ def retrieve_one(state, config: RunnableConfig) -> dict:
     }
 
 
+def _partial_abstain_answer(ungrounded: list[str], answers: list[str], reason: str) -> str:
+    """部分子问题有证据、部分没有时，两段式如实作答（不调模型、不润色）。
+
+    为什么不让模型在这里"整合"：
+      它会把「没有找到资料」这句改写成「根据现有资料，可以推断……」，
+      把缺口悄悄抹平。科研场景里，如实标注缺口比行文流畅重要得多。
+    """
+    lines: list[str] = []
+    if answers:
+        lines.append("**已找到资料的部分：**\n")
+        lines.extend(f"{a}\n" for a in answers)
+    if ungrounded:
+        lines.append("\n**知识库中没有足够证据的部分：**")
+        for q in ungrounded:
+            lines.append(f"- {q}")
+        lines.append(f"\n（原因：{reason}）")
+        lines.append("\n以上内容我没有基于猜测作答；如需这部分结论，请补充相关文档或换个更具体的问法。")
+    return "\n".join(lines)
+
+
 def respond(state: State, config: RunnableConfig) -> dict:
     """节点 6（reduce 阶段）：汇总子答案 → 最终回答。
 
     三种情况：
       1. 闲聊（无子答案）→ 直接聊
-      2. 单子问题答案 → 直接作为最终回答（省一次模型调用）
-      3. 多子问题 → 调模型做 reduce 汇总
+      2. 证据充分的子答案恰好 1 条 → 直接作为最终回答（省一次模型调用）
+      3. 多条子答案 → 调模型做 reduce 汇总
+
+    ⚠️ 拒答（abstained）永远走确定性文案，不调用模型汇总：
+       有证据的答案与「没找到资料」的说明混在一起做 reduce，模型很容易
+       把后者润色成「根据现有资料……」这种像是查到了证据的句子。
+       宁可少一次模型调用，也不能让「无证据」被包装成「有结论」。
     """
     cfg = Configuration.from_runnable_config(config)
     question = state.messages[-1].content
     answers = [a for a in (state.sub_answers or []) if a]
+    ungrounded = [q for q in (state.ungrounded_questions or []) if q]
 
     # ── 情况 1：闲聊 ──
     if _is_chitchat(question):
@@ -558,16 +597,19 @@ def respond(state: State, config: RunnableConfig) -> dict:
         )
         return {"messages": [reply]}
 
-    # ── 情况 2：单子问题，答案即终答 ──
+    # ── 情况 0：有分支拒答 → 如实交代，部分有证据时也只拼接、不润色 ──
+    if state.abstained:
+        reason = state.abstain_reason or "检索结果相关度不足"
+        if not answers:
+            return {"messages": [AIMessage(content=ABSTAIN_TEMPLATE.format(reason=reason))]}
+        # 部分子问题有证据、部分没有：两段式如实回答，不做模型汇总
+        return {"messages": [AIMessage(content=_partial_abstain_answer(ungrounded, answers, reason))]}
+
+    # ── 情况 2：单条子答案，答案即终答 ──
     if len(answers) == 1:
         return {"messages": [AIMessage(content=answers[0])]}
 
     if not answers:
-        # 所有分支都拒答时，给出统一的解释，而不是含糊的「未找到」
-        if state.abstained:
-            return {"messages": [AIMessage(content=ABSTAIN_TEMPLATE.format(
-                reason=state.abstain_reason or "检索结果相关度不足"
-            ))]}
         return {"messages": [AIMessage(content="知识库中未找到相关答案。")]}
 
     # ── 情况 3：多子问题，reduce 汇总 ──

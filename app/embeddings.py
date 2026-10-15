@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 
 try:
     from .config import settings
@@ -24,19 +25,30 @@ logger = logging.getLogger(__name__)
 _embeddings = None
 _reranker = None
 
+# ⚠️ 为什么必须加锁（2026-10-16 实测修复）：
+#   原来是裸的 check-then-act（`if _x is None: 加载`）。FastAPI 同步端点跑在线程池里，
+#   首屏并发请求会**同时**判定为 None 并各自加载一份模型：
+#     · 计数替身实测 8 线程 → 构造函数被调用 8 次（应为 1）
+#     · 真实 bge-reranker-base 6 线程 → 进程直接被 OOM 干掉
+#       （`memory allocation of 9437184 bytes failed`，Rust 侧 abort，Python 抓不住）
+#   双重检查锁定：锁内再判一次 None，保证只加载一次；后续命中直接返回，不进锁。
+_model_lock = threading.Lock()
+
 
 def get_embeddings():
     """本地嵌入模型（免费、无需 Key），单例复用。"""
     global _embeddings
     if _embeddings is None:
-        from langchain_huggingface import HuggingFaceEmbeddings
+        with _model_lock:
+            if _embeddings is None:
+                from langchain_huggingface import HuggingFaceEmbeddings
 
-        logger.info("加载嵌入模型 %s", settings.embed_model)
-        _embeddings = HuggingFaceEmbeddings(
-            model_name=settings.embed_model,
-            model_kwargs={"device": "cpu"},
-            encode_kwargs={"normalize_embeddings": True},
-        )
+                logger.info("加载嵌入模型 %s", settings.embed_model)
+                _embeddings = HuggingFaceEmbeddings(
+                    model_name=settings.embed_model,
+                    model_kwargs={"device": "cpu"},
+                    encode_kwargs={"normalize_embeddings": True},
+                )
     return _embeddings
 
 
@@ -49,10 +61,12 @@ def get_reranker():
     """
     global _reranker
     if _reranker is None:
-        from sentence_transformers import CrossEncoder
+        with _model_lock:
+            if _reranker is None:
+                from sentence_transformers import CrossEncoder
 
-        logger.info("加载重排模型 %s（首次需下载，请稍候）", settings.rerank_model)
-        _reranker = CrossEncoder(settings.rerank_model, device="cpu", max_length=512)
+                logger.info("加载重排模型 %s（首次需下载，请稍候）", settings.rerank_model)
+                _reranker = CrossEncoder(settings.rerank_model, device="cpu", max_length=512)
     return _reranker
 
 

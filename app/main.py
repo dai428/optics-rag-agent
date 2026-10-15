@@ -444,7 +444,12 @@ def _run_index(force: bool) -> dict:
             except ImportError:
                 import knowledge_base as kb
 
+            # ⚠️ 两个单例都要清（2026-10-16 修复）：
+            #   以前只清 _vs，漏了 _bm25_retriever。BM25 是从 Chroma 全量取语料建的，
+            #   不清就会继续用**旧语料**——新上传的文档向量能召回、关键词/数字查询搜不到，
+            #   正好是「文件在但搜不到」的困惑期（Dockerfile 注释里特意想避免的情况）。
             kb._vs = None
+            kb._bm25_retriever = None
         except Exception:  # noqa: BLE001
             pass
     return report.to_dict()
@@ -711,7 +716,12 @@ async def _stream_graph(req: ChatRequest):
                     elif node == "retrieve_one":
                         docs = upd.get("retrieved_docs") or []
                         doc_count += len(docs)
-                        abstained = bool(upd.get("abstained"))
+                        # ⚠️ 必须用「或」累计，不能直接赋值：
+                        #    多个并行分支会各发一次 updates，只有真正拒答的分支才带
+                        #    abstained 键。若直接赋值，后到的命中分支（无该键 → None）
+                        #    会把 True 覆盖成 False，让拒答在前端凭空消失。
+                        if upd.get("abstained"):
+                            abstained = True
                         abstain_reason = upd.get("abstain_reason", "") or abstain_reason
                         detail = f"累计命中 {doc_count} 条资料"
                         if abstained:
@@ -845,7 +855,12 @@ if _DIST.exists() and (_DIST / "index.html").exists():
         """
         if full_path.startswith(("api/", "assets/")):
             raise HTTPException(status_code=404, detail="Not Found")
-        candidate = _DIST / full_path
-        if full_path and candidate.is_file():
+        # ⚠️ 必须做路径归一化 + 归属校验（2026-10-16 修复安全漏洞）：
+        #   Path.__truediv__ 不会阻止 `..`，`_DIST / "../../.env"` 会指到仓库根的 .env。
+        #   该路由无鉴权，实测 GET /..%2f..%2f.env 能直接读到 AMD_API_KEY、
+        #   /..%2f..%2fdata%2fapp.db 能读到全部会话库。故先 resolve 再确认仍在 dist 内。
+        dist_root = _DIST.resolve()
+        candidate = (dist_root / full_path).resolve()
+        if full_path and candidate.is_file() and candidate.is_relative_to(dist_root):
             return FileResponse(candidate)
         return FileResponse(_DIST / "index.html")
