@@ -26,6 +26,7 @@
 import logging
 import math
 import os
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -61,6 +62,7 @@ logger = logging.getLogger(__name__)
 # 只在真正用到时才加载，避免拖慢 FastAPI 冷启动（torch 顶层导入约 10.5s）。
 
 _vs = None
+_vs_lock = threading.Lock()
 _parent_store = None
 _bm25_retriever = None
 
@@ -209,60 +211,71 @@ def get_vectorstore(force: bool = False):
     与旧实现的关键区别：**不再无条件复用**。每次首次获取时校验清单，
     若语料已变化、嵌入模型或切块参数已变更，则先重建再返回，
     避免「查的是旧索引却毫无提示」。
+
+    并发安全：首屏会同时打 /api/documents、/api/ready、/chat 等多个接口，
+    它们都会走到这里。Chroma 1.5.x 的 PersistentClient 在同一路径上只允许
+    一套 settings，两个线程同时构造会抛
+    `ValueError: Could not connect to tenant default_tenant`
+    （实测 3 个并发请求必现，用户看到的是首屏指标卡报错）。
+    因此这里用双重检查锁，锁内再判一次，保证只构造一次。
     """
     global _vs
     if _vs is not None and not force:
         return _vs
 
-    from langchain_chroma import Chroma
+    with _vs_lock:
+        if _vs is not None and not force:
+            return _vs
 
-    build_index = _indexer.build_index
-    compute_diff = _indexer.compute_diff
-    current_manifest = _indexer.current_manifest
+        from langchain_chroma import Chroma
 
-    emb = get_embeddings()
+        build_index = _indexer.build_index
+        compute_diff = _indexer.compute_diff
+        current_manifest = _indexer.current_manifest
 
-    if force:
-        build_index(settings, force=True, incremental=False)
-    else:
-        manifest = current_manifest(settings)
-        need_build = manifest is None
-        if manifest is not None:
-            compatible, _ = manifest.is_compatible(
-                settings.embed_model,
-                {
-                    "parent_min": settings.parent_chunk_size_min,
-                    "parent_max": settings.parent_chunk_size_max,
-                    "child_size": settings.child_chunk_size,
-                    "child_overlap": settings.child_chunk_overlap,
-                },
-            )
-            if not compatible:
-                need_build = True
-            else:
-                diff, _ = compute_diff(settings)
-                need_build = bool(diff and diff.needs_rebuild)
-        if need_build:
-            logger.info("检测到索引缺失或语料变化，正在自动重建索引…")
-            build_index(settings, force=manifest is None, incremental=True)
+        emb = get_embeddings()
 
-    vs = Chroma(
-        collection_name=settings.collection_name,
-        persist_directory=str(settings.chroma_dir),
-        embedding_function=emb,
-    )
-    try:
-        count = vs._collection.count()
-        logger.info("向量库就绪：%d 个子块", count)
-        if count == 0:
-            logger.warning(
-                "向量库为空。请确认 %s 下有 .md/.txt/.csv/.pdf/.docx 文件并完成建库。",
-                settings.docs_dir,
-            )
-    except Exception as e:  # noqa: BLE001
-        logger.warning("读取向量库计数失败：%s", e)
-    _vs = vs
-    return _vs
+        if force:
+            build_index(settings, force=True, incremental=False)
+        else:
+            manifest = current_manifest(settings)
+            need_build = manifest is None
+            if manifest is not None:
+                compatible, _ = manifest.is_compatible(
+                    settings.embed_model,
+                    {
+                        "parent_min": settings.parent_chunk_size_min,
+                        "parent_max": settings.parent_chunk_size_max,
+                        "child_size": settings.child_chunk_size,
+                        "child_overlap": settings.child_chunk_overlap,
+                    },
+                )
+                if not compatible:
+                    need_build = True
+                else:
+                    diff, _ = compute_diff(settings)
+                    need_build = bool(diff and diff.needs_rebuild)
+            if need_build:
+                logger.info("检测到索引缺失或语料变化，正在自动重建索引…")
+                build_index(settings, force=manifest is None, incremental=True)
+
+        vs = Chroma(
+            collection_name=settings.collection_name,
+            persist_directory=str(settings.chroma_dir),
+            embedding_function=emb,
+        )
+        try:
+            count = vs._collection.count()
+            logger.info("向量库就绪：%d 个子块", count)
+            if count == 0:
+                logger.warning(
+                    "向量库为空。请确认 %s 下有 .md/.txt/.csv/.pdf/.docx 文件并完成建库。",
+                    settings.docs_dir,
+                )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("读取向量库计数失败：%s", e)
+        _vs = vs
+        return _vs
 
 
 # ══════════════════════════════════════════════════════════════════

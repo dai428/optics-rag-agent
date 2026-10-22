@@ -46,7 +46,10 @@ def get_embeddings():
                 logger.info("加载嵌入模型 %s", settings.embed_model)
                 _embeddings = HuggingFaceEmbeddings(
                     model_name=settings.embed_model,
-                    model_kwargs={"device": "cpu"},
+                    # local_files_only：模型已缓存时直接读本地，跳过向 HF 发 HEAD 校验。
+                    # 不加会在每次冷启动被 hf-mirror 429 限流、等待几十秒到 89 秒，
+                    # 用户感受到的就是「首屏一直转圈」。
+                    model_kwargs={"device": "cpu", "local_files_only": True},
                     encode_kwargs={"normalize_embeddings": True},
                 )
     return _embeddings
@@ -66,7 +69,13 @@ def get_reranker():
                 from sentence_transformers import CrossEncoder
 
                 logger.info("加载重排模型 %s（首次需下载，请稍候）", settings.rerank_model)
-                _reranker = CrossEncoder(settings.rerank_model, device="cpu", max_length=512)
+                _reranker = CrossEncoder(
+                    settings.rerank_model,
+                    device="cpu",
+                    max_length=512,
+                    # 同 get_embeddings：已缓存就走本地，避免 HF 限流阻塞首屏。
+                    local_files_only=True,
+                )
     return _reranker
 
 
