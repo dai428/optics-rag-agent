@@ -31,3 +31,13 @@ refs/
 .pytest_cache/
 htmlcov/
 *.log
+
+# 🔴 关键：前端的本地依赖与构建产物
+#   Dockerfile 里顺序是「先 COPY package*.json → npm ci → 再 COPY frontend/」。
+#   如果本地 node_modules 被打进上下文，第二步 COPY 会用 Windows 版依赖
+#   覆盖掉镜像里刚装好的 Linux 版（含平台相关的二进制），构建直接失败；
+#   即使侥幸通过，镜像也会白白胖几百 MB。
+#   dist 同理：容器内自己构建，不需要本地产物。
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/

@@ -26,7 +26,6 @@
   > 计数说明：`git log --all` 与 `git log main` 数字一致（分支已合并干净）。
   > 历史曾因 rebase 留下重复血统，2026-10-15 重写历史时已压平。
 - 分阶段演进而非一次性导入：`feat` / `fix` / `chore` / `docs` 四类齐全，含真实排障提交
-- 分阶段演进而非一次性导入：`feat` / `fix` / `chore` / `docs` 四类齐全，含真实排障提交
   （如 `fix: 修复 Phase 0 正确性问题（状态污染/包导入/配置/重排方向）`）。
 - 评测数字均由本仓库脚本产出，可当场复现（见第三节）。
 
@@ -34,18 +33,23 @@
 
 ## 零之二、界面实拍（本地跑通后截图）
 
-| 落地页 | 真实问答（含执行轨迹 + 引用） |
+| 落地页（浅色） | 落地页（深色） |
 |---|---|
-| ![落地页](docs/screenshots/01-home.png) | ![问答与引用](docs/screenshots/02-qa-with-citations.png) |
+| ![落地页浅色](docs/screenshots/01-home-light.png) | ![落地页深色](docs/screenshots/02-home-dark.png) |
 
-- 左图：侧栏实时显示语料规模（**15 篇 / 643 个向量切片 / 84 个父块**）、检索方式与重排状态。
-- 右图：一次真实提问的完整执行轨迹——`开始处理 → 查询改写 0s → 澄清检查 1.2s →
-  问题拆分 2.7s → 资料检索 17.7s → 生成回答 17.7s`，底部标出「检索 5 条资料」与改写后的检索问句。
-- 第三张（流式中间态）：[03-streaming-stages.png](docs/screenshots/03-streaming-stages.png)
+| Agentic 执行轨迹（真实提问进行中） |
+|---|
+| ![执行轨迹](docs/screenshots/03-agentic-trail.png) |
 
-> ⚠️ 截图是**早期版本**拍摄的，侧栏显示「14 篇 / 545 切片」；当前语料已扩展到
-> **15 篇 / 643 子块 / 84 父块**（以 `data/index_manifest.json` 为准）。两处均为实测值，
-> 数字差异来自语料更新，不是截图伪造。
+- 首屏不只是「一个输入框」：上方是三条核心能力（可溯源检索 / Agentic 流程 / 垂直领域），
+  中间是**知识库实时指标**（语料文档数、向量切片数、父块数、检索方式），直接由 `/api/documents` 喂入。
+- 深色主题跟随系统，也可在侧栏品牌区右上角一键切换（记忆到 localStorage）。
+- 轨迹图：一次真实提问的中间态——`开始处理 → 准备本轮 → 查询改写 → 澄清检查`，
+  答案区显示「正在检索文献并组织回答…」。这张图刻意截在**正文输出之前**，
+  用来展示 Agentic 流程本身（也避免把语料内容拍进公开截图）。
+
+> ⚠️ 截图口径说明：侧栏会话标题与知识库文件名属于本地私有语料，截图前已用通用示例标题替换，
+> 不代表真实数据库内容。
 
 ---
 
@@ -118,6 +122,21 @@ FastAPI ── 驱动 graph.astream(stream_mode=["updates", "messages", "custom"
 中间产物（比如「清晰」两个字）。`retrieve_one` 仅在问题**未被拆分**时才推 ——
 单问题路径的最终答案就在这个节点生成；多子问题时会并行跑多个分支，token 会交错串台，
 必须等 `respond` 汇总（reduce）后再推。
+
+### 前端工程化
+
+前端没有止步于「能跑」：
+
+| 项 | 做法 |
+|---|---|
+| **设计系统** | `styles.css` 只定义一组语义化 CSS 变量（`--bg` / `--panel` / `--ink` / `--brand`…），深浅两套主题只换变量值，组件样式不重复写两遍 |
+| **深色模式** | `useTheme` 首次跟随 `prefers-color-scheme`，手动切换后记忆到 localStorage；侧栏一键切换 |
+| **逻辑与视图分离** | 时间格式化、会话排序抽成 `lib/` 下的纯函数，Hook（`useTheme` / `useAutoScroll`）与组件解耦 |
+| **单元测试** | Vitest + React Testing Library，**23 个用例**覆盖纯逻辑、SSE 解析与关键交互；`npm run test` |
+| **代码规范** | ESLint 10 flat config + Prettier，`npm run lint` 零 warning；CI 里 lint / 格式 / 测试 / 构建四道门禁 |
+
+> 测试只覆盖「改了容易悄悄坏」的地方（时间格式化的边界、SSE 解析、富文本渲染、主题切换），
+> 不追覆盖率数字 —— 追覆盖率容易变成给 getters 写断言的形式主义。
 
 ### 六个 Agentic 能力（都对应一个真实痛点）
 
@@ -222,13 +241,20 @@ rag-demo/
 │  ├─ eval_gen.py            #    生成层评测（RAGAS）
 │  ├─ verify_p1.py           #    Agentic 行为验证
 │  └─ test_rag.py            #    服务链路测试
-├─ frontend/                 # ⭐ 前端（Vite + React + TypeScript）
+├─ frontend/                 # ⭐ 前端（Vite + React 18 + TypeScript）
 │  ├─ src/
 │  │  ├─ App.tsx             #    会话管理 + 流式状态编排 + 本地持久化
 │  │  ├─ api.ts              #    接口封装（含手写 SSE 解析）
 │  │  ├─ types.ts            #    与后端返回一一对应的类型
 │  │  ├─ markdown.tsx        #    轻量富文本渲染（不引 markdown 依赖）
-│  │  └─ components/         #    Sidebar / ChatPanel / MessageBubble / StageTrail
+│  │  ├─ styles.css          #    设计系统：CSS 变量 + 深浅两套主题
+│  │  ├─ lib/                #    useTheme / useAutoScroll / time / sessions
+│  │  ├─ components/         #    Sidebar / ChatPanel / WelcomePanel / MessageBubble
+│  │  │                      #    / StageTrail / CitationList / DocumentsPanel / ThemeToggle
+│  │  └─ test/setup.ts       #    注入 jest-dom 匹配器
+│  ├─ README.md              #    前端架构与取舍说明（面试讲解素材）
+│  ├─ eslint.config.js       #    ESLint 10 flat config
+│  ├─ vitest.config.ts       #    单元测试配置（jsdom + RTL）
 │  ├─ vite.config.ts         #    开发期 /api 代理到 8000
 │  └─ dist/                  #    构建产物（由 FastAPI 托管，已 .gitignore）
 ├─ data/
@@ -273,10 +299,14 @@ cd app
 cd frontend
 npm install
 npm run build          # 产出 frontend/dist，由 FastAPI 自动托管（同源，无跨域）
+
+npm run test           # 单元测试（Vitest + React Testing Library）
+npm run lint           # ESLint 10 flat config
 ```
 
 > 开发前端时改用 `npm run dev`（起在 5173，由 Vite 把 `/api` 代理到 8000），
 > 改代码即时热更新，不用反复 build。**改了前端要重新 build 才会体现在 8000 端口。**
+> 前端的设计取舍与目录说明见 [frontend/README.md](frontend/README.md)。
 
 ### 5) 启动服务
 
@@ -400,5 +430,7 @@ cd app
 - [x] **生成层评测**：RAGAS faithfulness + answer_relevancy
 - [x] **可观测**：`observability.py` 接 Langfuse（未配置自动跳过）
 - [x] **容器化**：Dockerfile / .dockerignore
+- [x] **前端工程化**：设计系统（深浅双主题）、23 个单元测试、ESLint 10 + Prettier
 - [ ] 语料扩到设备手册 / 更多论文，做增量索引
 - [ ] 多模态：把实验图表也纳入检索
+- [ ] 前端补 E2E（Playwright）覆盖流式问答主链路

@@ -104,7 +104,10 @@ export async function fetchMessages(sessionId: string) {
 }
 
 /** 上传文档并（默认）立即重建索引 */
-export async function uploadDocument(file: File, subdir = ''): Promise<{
+export async function uploadDocument(
+  file: File,
+  subdir = '',
+): Promise<{
   status: string
   rel_path: string
   message: string
@@ -174,9 +177,7 @@ export interface StreamHandlers {
   onToken?: (text: string) => void
   /** 后端在重试前通知「已流出的内容作废」，前端应清空当前气泡 */
   onReset?: (reason: string) => void
-  onDone?: (
-    data: { answer: string; title?: string; citations?: Citation[] } & DoneMeta,
-  ) => void
+  onDone?: (data: { answer: string; title?: string; citations?: Citation[] } & DoneMeta) => void
   onError?: (message: string) => void
 }
 

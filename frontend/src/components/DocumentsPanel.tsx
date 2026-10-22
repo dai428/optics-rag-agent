@@ -82,16 +82,11 @@ export default function DocumentsPanel({
     }
   }
 
-  const statusTone =
-    index?.status === 'ok' ? 'ok' : index?.status === 'missing' ? 'bad' : 'warn'
+  const statusTone = index?.status === 'ok' ? 'ok' : index?.status === 'missing' ? 'bad' : 'warn'
 
   return (
     <section className={`doc-panel${open ? ' open' : ''}`}>
-      <button
-        className="doc-panel-head"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
+      <button className="doc-panel-head" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
         <span>知识库</span>
         <span className="doc-panel-badge">{documents.length} 篇</span>
         <span className="doc-panel-caret">{open ? '▾' : '▸'}</span>
@@ -105,7 +100,9 @@ export default function DocumentsPanel({
           </div>
           <div className="kb-row">
             <span>检索方式</span>
-            <b>{kb ? (kb.retrieval.mode.includes('hybrid') ? '混合检索' : kb.retrieval.mode) : '—'}</b>
+            <b>
+              {kb ? (kb.retrieval.mode.includes('hybrid') ? '混合检索' : kb.retrieval.mode) : '—'}
+            </b>
           </div>
           <div className="kb-row">
             <span>重排模型</span>
@@ -200,9 +197,7 @@ export default function DocumentsPanel({
             ))}
           </ul>
 
-          <div className="doc-foot">
-            支持 .md / .txt / .csv / .pdf / .docx，单文件上限 20 MB
-          </div>
+          <div className="doc-foot">支持 .md / .txt / .csv / .pdf / .docx，单文件上限 20 MB</div>
         </div>
       )}
     </section>

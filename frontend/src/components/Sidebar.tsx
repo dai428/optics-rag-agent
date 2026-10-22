@@ -4,6 +4,9 @@
 import { useState } from 'react'
 import type { DocumentsInfo, IndexReport, ReadyInfo, SessionSummary } from '../types'
 import DocumentsPanel from './DocumentsPanel'
+import ThemeToggle from './ThemeToggle'
+import { fmtTime } from '../lib/time'
+import type { Theme } from '../lib/useTheme'
 
 interface Props {
   sessions: SessionSummary[]
@@ -12,6 +15,8 @@ interface Props {
   health: { status: string; has_api_key: boolean } | null
   ready: ReadyInfo | null
   busy: boolean
+  theme: Theme
+  onToggleTheme: () => void
   onSelect: (sid: string) => void
   onNew: () => void
   onDelete: (sid: string) => void
@@ -22,18 +27,6 @@ interface Props {
   onReindex: (force: boolean) => Promise<void>
 }
 
-/** 今天只显示时分，更早显示月/日 —— 列表窄，不占地方。
- *  入参是后端给的 ISO 字符串（无时区），JS 会按本地时间解析。 */
-function fmtTime(iso: string): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  const sameDay = d.toDateString() === new Date().toDateString()
-  const hh = String(d.getHours()).padStart(2, '0')
-  const mm = String(d.getMinutes()).padStart(2, '0')
-  return sameDay ? `${hh}:${mm}` : `${d.getMonth() + 1}/${d.getDate()}`
-}
-
 export default function Sidebar({
   sessions,
   currentSid,
@@ -41,6 +34,8 @@ export default function Sidebar({
   health,
   ready,
   busy,
+  theme,
+  onToggleTheme,
   onSelect,
   onNew,
   onDelete,
@@ -81,8 +76,9 @@ export default function Sidebar({
             <span className="brand-mark">◈</span>
             <div className="brand-text">
               <h1>科研知识库 Agent</h1>
-              <p>可溯源问答 · 混合检索 + 引用核验</p>
+              <p>可溯源问答 · 混合检索</p>
             </div>
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
           </div>
           <button className="btn-new" onClick={onNew} disabled={busy} title="开启一段新对话">
             ＋ 新建会话
@@ -90,9 +86,7 @@ export default function Sidebar({
         </header>
 
         <nav className="session-list">
-          {sessions.length === 0 && (
-            <p className="empty-tip">还没有会话，直接在右侧提问即可开始</p>
-          )}
+          {sessions.length === 0 && <p className="empty-tip">还没有会话，直接在右侧提问即可开始</p>}
           {sessions.map((s) => (
             <div
               key={s.id}

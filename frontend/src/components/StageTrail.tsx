@@ -24,9 +24,7 @@ export default function StageTrail({ stages, streaming }: Props) {
           <span className="trail-icon">{s.pending ? '◌' : '✓'}</span>
           <span className="trail-label">{s.label}</span>
           {s.pending && <span className="trail-ellipsis" />}
-          {!s.pending && s.elapsed != null && (
-            <span className="trail-time">{s.elapsed}s</span>
-          )}
+          {!s.pending && s.elapsed != null && <span className="trail-time">{s.elapsed}s</span>}
         </span>
       ))}
     </div>

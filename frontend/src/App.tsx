@@ -21,6 +21,7 @@ import {
 } from './api'
 import ChatPanel from './components/ChatPanel'
 import Sidebar from './components/Sidebar'
+import { useTheme } from './lib/useTheme'
 import type {
   ChatMessage,
   Citation,
@@ -43,6 +44,7 @@ const byRecent = (a: SessionSummary, b: SessionSummary) =>
   (b.last_active || '').localeCompare(a.last_active || '')
 
 export default function App() {
+  const { theme, toggleTheme } = useTheme()
   const [sessions, setSessions] = useState<SessionSummary[]>([])
   const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>({})
   const [currentSid, setCurrentSid] = useState<string>(() => {
@@ -208,8 +210,7 @@ export default function App() {
           {
             onStage: (s) => upsertStage({ ...s }),
             onPending: (label) => upsertStage({ stage: '__pending__', label, pending: true }),
-            onToken: (t) =>
-              patchMessage(sid, asstId, (m) => ({ ...m, content: m.content + t })),
+            onToken: (t) => patchMessage(sid, asstId, (m) => ({ ...m, content: m.content + t })),
             // 模型长回答被上游掐断 → 后端重试前会发 reset。
             // 不清空的话，用户会看到「半截 + 完整」两段重复答案。
             onReset: () => patchMessage(sid, asstId, (m) => ({ ...m, content: '' })),
@@ -369,12 +370,9 @@ export default function App() {
     [],
   )
 
-  const handleDeleteDoc = useCallback(
-    async (relPath: string) => {
-      await deleteDocument(relPath)
-    },
-    [],
-  )
+  const handleDeleteDoc = useCallback(async (relPath: string) => {
+    await deleteDocument(relPath)
+  }, [])
 
   const handleReindex = useCallback(async (force: boolean) => {
     await reindex(force)
@@ -389,6 +387,8 @@ export default function App() {
         health={health}
         ready={ready}
         busy={streaming}
+        theme={theme}
+        onToggleTheme={toggleTheme}
         onSelect={(sid) => void selectSession(sid)}
         onNew={() => void createNewSession()}
         onDelete={(sid) => void removeSession(sid)}
@@ -401,6 +401,7 @@ export default function App() {
       <ChatPanel
         messages={messages}
         streaming={streaming}
+        kb={kb}
         onSend={(t) => void send(t)}
         onStop={stop}
         onFeedback={(id, r) => void feedback(id, r)}

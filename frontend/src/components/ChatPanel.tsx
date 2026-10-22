@@ -1,13 +1,13 @@
 // frontend/src/components/ChatPanel.tsx
-// 聊天主区：滚动消息列表 + 底部输入框
-//
-// 一个细节：流式逐字追加时会自动贴底，但如果用户手动往上滚（回看前文），
-// 就不该再抢他的滚动位置。所以这里判断「是否已接近底部」再决定要不要跟。
+// 聊天主区：滚动消息列表 + 底部输入框。
+// 滚动管理抽到 useAutoScroll Hook；空态抽到 WelcomePanel（含实时指标）。
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
-import type { ChatMessage } from '../types'
+import type { ChatMessage, DocumentsInfo } from '../types'
 import MessageBubble from './MessageBubble'
+import WelcomePanel from './WelcomePanel'
+import { useAutoScroll } from '../lib/useAutoScroll'
 
 interface Props {
   messages: ChatMessage[]
@@ -16,13 +16,8 @@ interface Props {
   onStop: () => void
   onFeedback: (messageId: string, rating: 'up' | 'down') => void
   onRegenerate: (messageId: string) => void
+  kb?: DocumentsInfo | null
 }
-
-const EXAMPLES = [
-  '测量矩阵条件数 κ2 的理论下界是多少？',
-  'LCVR 相比传统机械旋转波片有什么优势？',
-  '温度从 25℃ 升到 40℃，条件数恶化了多少？',
-]
 
 export default function ChatPanel({
   messages,
@@ -31,23 +26,11 @@ export default function ChatPanel({
   onStop,
   onFeedback,
   onRegenerate,
+  kb,
 }: Props) {
   const [text, setText] = useState('')
-  const scrollRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
-  const pinnedRef = useRef(true)
-
-  // 判断用户是否还在底部附近（阈值放宽到 80px，容忍小幅滚动）
-  const handleScroll = () => {
-    const el = scrollRef.current
-    if (!el) return
-    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
-  }
-
-  useEffect(() => {
-    const el = scrollRef.current
-    if (el && pinnedRef.current) el.scrollTop = el.scrollHeight
-  }, [messages])
+  const { scrollRef, handleScroll, pinnedRef } = useAutoScroll(messages)
 
   const submit = () => {
     const t = text.trim()
@@ -77,34 +60,10 @@ export default function ChatPanel({
     <main className="chat">
       <div className="chat-scroll" ref={scrollRef} onScroll={handleScroll}>
         {messages.length === 0 ? (
-          <div className="welcome">
-            <div className="welcome-mark">◈</div>
-            <h2>向你的科研资料库提问</h2>
-            <p>
-              背后是一套可溯源的 Agentic RAG：先改写问题、判断是否需要反问、必要时拆成子问题
-              并行检索，再做交叉编码器精排；回答会附上可展开的原文证据，证据不足时明确拒答。
-            </p>
-            <div className="examples">
-              {EXAMPLES.map((q) => (
-                <button
-                  key={q}
-                  className="example"
-                  onClick={() => onSend(q)}
-                  disabled={streaming}
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
+          <WelcomePanel onSend={onSend} streaming={streaming} kb={kb} />
         ) : (
           messages.map((m) => (
-            <MessageBubble
-              key={m.id}
-              msg={m}
-              onFeedback={onFeedback}
-              onRegenerate={onRegenerate}
-            />
+            <MessageBubble key={m.id} msg={m} onFeedback={onFeedback} onRegenerate={onRegenerate} />
           ))
         )}
       </div>
