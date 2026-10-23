@@ -22,14 +22,10 @@ import {
 import ChatPanel from './components/ChatPanel'
 import Sidebar from './components/Sidebar'
 import { useTheme } from './lib/useTheme'
-import type {
-  ChatMessage,
-  Citation,
-  DocumentsInfo,
-  IndexReport,
-  ReadyInfo,
-  SessionSummary,
-} from './types'
+import { byRecent, mapHistory } from './lib/sessions'
+import { downloadSession } from './lib/exportSession'
+import type { ExportFormat } from './lib/exportSession'
+import type { ChatMessage, DocumentsInfo, IndexReport, ReadyInfo, SessionSummary } from './types'
 
 // ── 本地缓存 key ──────────────────────────────────────────────────
 // 服务端已经持久化会话与消息（SQLite），这里只缓存「当前选中的会话」这类
@@ -38,10 +34,6 @@ const LS_CURRENT = 'optics-rag-agent:current:v3'
 
 const rid = (prefix: string) =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
-
-/** ISO 字符串可直接按字典序比较大小，省掉转 Date 的开销 */
-const byRecent = (a: SessionSummary, b: SessionSummary) =>
-  (b.last_active || '').localeCompare(a.last_active || '')
 
 export default function App() {
   const { theme, toggleTheme } = useTheme()
@@ -55,6 +47,12 @@ export default function App() {
     }
   })
   const [streaming, setStreaming] = useState(false)
+  const [sessionMutation, setSessionMutation] = useState(false)
+  const [historyFailure, setHistoryFailure] = useState<{ sid: string; message: string } | null>(
+    null,
+  )
+  const [historyAttempt, setHistoryAttempt] = useState(0)
+  const mutationRef = useRef(false)
   const [kb, setKb] = useState<DocumentsInfo | null>(null)
   const [health, setHealth] = useState<{ status: string; has_api_key: boolean } | null>(null)
   const [ready, setReady] = useState<ReadyInfo | null>(null)
@@ -128,28 +126,33 @@ export default function App() {
     [],
   )
 
-  // ── 选中会话时按需加载服务端历史 ──
-  const selectSession = useCallback(
-    async (sid: string) => {
-      setCurrentSid(sid)
-      if (messagesMap[sid]?.length) return
-      try {
-        const history = await fetchMessages(sid)
-        const mapped: ChatMessage[] = history.map((m) => ({
-          id: `srv-${m.id}`,
-          serverId: m.id,
-          role: m.role === 'user' ? 'user' : 'assistant',
-          content: m.content,
-          meta: (m.meta as ChatMessage['meta']) ?? undefined,
-          citations: (m.meta?.citations as Citation[] | undefined) ?? undefined,
-        }))
-        setMessagesMap((prev) => ({ ...prev, [sid]: mapped }))
-      } catch {
-        /* 会话可能已被删除 */
-      }
-    },
-    [messagesMap],
-  )
+  // 选中会话（包括 localStorage 恢复）统一加载；切换后的迟到响应不写入。
+  const historyLoaded = !currentSid || messagesMap[currentSid] !== undefined
+  const historyError = historyFailure?.sid === currentSid ? historyFailure.message : null
+  const historyLoading = !historyLoaded && !historyError
+  useEffect(() => {
+    if (!currentSid || historyLoaded) return
+    let active = true
+    setHistoryFailure(null)
+    fetchMessages(currentSid)
+      .then((history) => {
+        if (!active) return
+        const mapped = mapHistory(history)
+        setMessagesMap((prev) =>
+          prev[currentSid] !== undefined ? prev : { ...prev, [currentSid]: mapped },
+        )
+      })
+      .catch((e: Error) => {
+        if (active) setHistoryFailure({ sid: currentSid, message: e.message })
+      })
+    return () => {
+      active = false
+    }
+  }, [currentSid, historyLoaded, historyAttempt])
+
+  const selectSession = useCallback((sid: string) => {
+    if (!busyRef.current && !mutationRef.current) setCurrentSid(sid)
+  }, [])
 
   /** 拿到当前会话 id；没有就向服务端新建一个 */
   const ensureSession = useCallback(async () => {
@@ -157,6 +160,7 @@ export default function App() {
     try {
       const created = await apiCreateSession()
       setSessions((prev) => [created, ...prev])
+      setMessagesMap((prev) => ({ ...prev, [created.id]: [] }))
       setCurrentSid(created.id)
       return created.id
     } catch {
@@ -167,6 +171,7 @@ export default function App() {
         { id: sid, title: '新会话', created_at: ts, last_active: ts, turns: 0 },
         ...prev,
       ])
+      setMessagesMap((prev) => ({ ...prev, [sid]: [] }))
       setCurrentSid(sid)
       return sid
     }
@@ -176,7 +181,7 @@ export default function App() {
   const send = useCallback(
     async (text: string, sidOverride?: string) => {
       const trimmed = text.trim()
-      if (!trimmed || busyRef.current) return
+      if (!trimmed || busyRef.current || mutationRef.current || !historyLoaded) return
       busyRef.current = true
 
       const sid = sidOverride ?? (await ensureSession())
@@ -258,7 +263,7 @@ export default function App() {
       // 后端在 done 时才更新 turns / last_active，这里拉一次保持一致
       void refreshSessions()
     },
-    [ensureSession, patchMessage, refreshSessions, showToast],
+    [ensureSession, historyLoaded, patchMessage, refreshSessions, showToast],
   )
 
   const stop = useCallback(() => abortRef.current?.abort(), [])
@@ -313,7 +318,9 @@ export default function App() {
 
   // ── 会话操作 ──
   const createNewSession = useCallback(async () => {
-    if (busyRef.current) return
+    if (busyRef.current || mutationRef.current) return
+    mutationRef.current = true
+    setSessionMutation(true)
     try {
       const created = await apiCreateSession()
       setSessions((prev) => [created, ...prev])
@@ -321,44 +328,67 @@ export default function App() {
       setMessagesMap((prev) => ({ ...prev, [created.id]: [] }))
     } catch (e) {
       showToast(`新建会话失败：${(e as Error).message}`, 'error')
+    } finally {
+      mutationRef.current = false
+      setSessionMutation(false)
     }
   }, [showToast])
 
   const removeSession = useCallback(
     async (sid: string) => {
-      setSessions((prev) => {
-        const rest = prev.filter((s) => s.id !== sid)
-        if (sid === currentSid) setCurrentSid(rest[0]?.id ?? '')
-        return rest
-      })
-      setMessagesMap((prev) => {
-        const copy = { ...prev }
-        delete copy[sid]
-        return copy
-      })
+      if (busyRef.current || mutationRef.current) return
+      mutationRef.current = true
+      setSessionMutation(true)
       try {
-        // 同时清掉后端 LangGraph 里的对话记忆与数据库记录，
-        // 否则下次同 id 提问模型还记得上文
         await deleteSession(sid)
-      } catch {
-        /* 后端可能重启过、该会话本就不存在，忽略 */
+        const rest = sessions.filter((s) => s.id !== sid)
+        setSessions(rest)
+        if (sid === currentSid) setCurrentSid(rest[0]?.id ?? '')
+        setMessagesMap((prev) => {
+          const copy = { ...prev }
+          delete copy[sid]
+          return copy
+        })
+        delete lastQuestionRef.current[sid]
+        showToast('会话已删除')
+      } catch (e) {
+        showToast(`删除失败，原会话已保留：${(e as Error).message}`, 'error')
+      } finally {
+        mutationRef.current = false
+        setSessionMutation(false)
       }
     },
-    [currentSid],
+    [currentSid, sessions, showToast],
   )
 
   const rename = useCallback(
     async (sid: string, title: string) => {
-      setSessions((prev) => prev.map((s) => (s.id === sid ? { ...s, title } : s)))
+      if (busyRef.current || mutationRef.current || !title.trim()) return
+      mutationRef.current = true
+      setSessionMutation(true)
       try {
-        await renameSession(sid, title)
+        const renamed = await renameSession(sid, title.trim())
+        setSessions((prev) => prev.map((s) => (s.id === sid ? { ...s, title: renamed.title } : s)))
       } catch (e) {
-        showToast(`重命名失败：${(e as Error).message}`, 'error')
-        void refreshSessions()
+        showToast(`重命名失败，原标题已保留：${(e as Error).message}`, 'error')
+      } finally {
+        mutationRef.current = false
+        setSessionMutation(false)
       }
     },
-    [refreshSessions, showToast],
+    [showToast],
   )
+
+  const exportCurrentSession = (format: ExportFormat) => {
+    const session = sessions.find((s) => s.id === currentSid)
+    if (!session || !historyLoaded || streaming || sessionMutation || !messages.length) return
+    try {
+      downloadSession(session, messages, format)
+      showToast('已生成当前会话导出文件')
+    } catch (e) {
+      showToast(`导出失败：${(e as Error).message}`, 'error')
+    }
+  }
 
   // ── 文档操作 ──
   const handleUpload = useCallback(
@@ -386,7 +416,7 @@ export default function App() {
         kb={kb}
         health={health}
         ready={ready}
-        busy={streaming}
+        busy={streaming || sessionMutation}
         theme={theme}
         onToggleTheme={toggleTheme}
         onSelect={(sid) => void selectSession(sid)}
@@ -401,6 +431,22 @@ export default function App() {
       <ChatPanel
         messages={messages}
         streaming={streaming}
+        sessionTitle={sessions.find((s) => s.id === currentSid)?.title}
+        historyLoading={historyLoading}
+        historyError={historyError}
+        interactionDisabled={!historyLoaded || sessionMutation}
+        exportDisabled={
+          !historyLoaded ||
+          !messages.length ||
+          streaming ||
+          sessionMutation ||
+          !sessions.some((s) => s.id === currentSid)
+        }
+        onExport={exportCurrentSession}
+        onRetryHistory={() => {
+          setHistoryFailure(null)
+          setHistoryAttempt((n) => n + 1)
+        }}
         kb={kb}
         onSend={(t) => void send(t)}
         onStop={stop}

@@ -8,6 +8,7 @@ import type { ChatMessage, DocumentsInfo } from '../types'
 import MessageBubble from './MessageBubble'
 import WelcomePanel from './WelcomePanel'
 import { useAutoScroll } from '../lib/useAutoScroll'
+import type { ExportFormat } from '../lib/exportSession'
 
 interface Props {
   messages: ChatMessage[]
@@ -17,6 +18,13 @@ interface Props {
   onFeedback: (messageId: string, rating: 'up' | 'down') => void
   onRegenerate: (messageId: string) => void
   kb?: DocumentsInfo | null
+  sessionTitle?: string
+  historyLoading: boolean
+  historyError: string | null
+  interactionDisabled: boolean
+  exportDisabled: boolean
+  onExport: (format: ExportFormat) => void
+  onRetryHistory: () => void
 }
 
 export default function ChatPanel({
@@ -27,6 +35,13 @@ export default function ChatPanel({
   onFeedback,
   onRegenerate,
   kb,
+  sessionTitle,
+  historyLoading,
+  historyError,
+  interactionDisabled,
+  exportDisabled,
+  onExport,
+  onRetryHistory,
 }: Props) {
   const [text, setText] = useState('')
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -34,7 +49,7 @@ export default function ChatPanel({
 
   const submit = () => {
     const t = text.trim()
-    if (!t || streaming) return
+    if (!t || streaming || interactionDisabled) return
     onSend(t)
     setText('')
     pinnedRef.current = true
@@ -58,9 +73,29 @@ export default function ChatPanel({
 
   return (
     <main className="chat">
+      <header className="chat-toolbar">
+        <strong title={sessionTitle}>{sessionTitle || '新会话'}</strong>
+        <div className="export-actions" aria-label="导出当前会话">
+          <button onClick={() => onExport('markdown')} disabled={exportDisabled}>
+            导出 Markdown
+          </button>
+          <button onClick={() => onExport('json')} disabled={exportDisabled}>
+            导出 JSON
+          </button>
+        </div>
+      </header>
       <div className="chat-scroll" ref={scrollRef} onScroll={handleScroll}>
-        {messages.length === 0 ? (
-          <WelcomePanel onSend={onSend} streaming={streaming} kb={kb} />
+        {historyLoading ? (
+          <p className="empty-tip" role="status">
+            正在加载会话历史…
+          </p>
+        ) : historyError ? (
+          <div className="empty-tip" role="alert">
+            <p>历史加载失败：{historyError}</p>
+            <button onClick={onRetryHistory}>重试加载历史</button>
+          </div>
+        ) : messages.length === 0 ? (
+          <WelcomePanel onSend={onSend} streaming={streaming || interactionDisabled} kb={kb} />
         ) : (
           messages.map((m) => (
             <MessageBubble key={m.id} msg={m} onFeedback={onFeedback} onRegenerate={onRegenerate} />
@@ -75,6 +110,7 @@ export default function ChatPanel({
             value={text}
             rows={1}
             aria-label="提问输入框"
+            disabled={interactionDisabled}
             placeholder="问点什么，比如「条件数的理论下界是多少？」"
             onChange={handleChange}
             onKeyDown={handleKeyDown}
@@ -84,7 +120,11 @@ export default function ChatPanel({
               ■ 停止
             </button>
           ) : (
-            <button className="btn-send" onClick={submit} disabled={!text.trim()}>
+            <button
+              className="btn-send"
+              onClick={submit}
+              disabled={!text.trim() || interactionDisabled}
+            >
               发送 ↵
             </button>
           )}

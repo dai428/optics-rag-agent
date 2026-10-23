@@ -323,7 +323,7 @@ def graph_chat(req: ChatRequest):
         rewritten=queries[-1] if queries else "",
         retrieved=len(docs),
         abstained=abstained,
-        citations=len(citations),
+        citations=citations,
         elapsed_ms=int((time.time() - started) * 1000),
     )
     return ChatResponse(
@@ -545,11 +545,18 @@ def _record_turn(
     rewritten: str = "",
     retrieved: int = 0,
     abstained: bool = False,
-    citations: int = 0,
+    citations: list[dict] | None = None,
     elapsed_ms: int = 0,
     used_retrieval: bool = False,
 ) -> None:
-    """把一轮问答写入数据库：会话、消息、查询日志。"""
+    """把一轮问答写入数据库：会话、消息、查询日志。
+
+    注意 citations 存的是**完整引用数组**，不是条数：
+    前端打开历史会话时会用 meta.citations 还原引用卡片，若这里只存数字，
+    历史回看就永远看不到原文证据（实时回答正常，回看为空，很难发现）。
+    条数由 len() 现算并写入查询日志，两处口径不会漂移。
+    """
+    citations = citations or []
     try:
         database = db()
         database.touch_session(sid, question)
@@ -564,6 +571,7 @@ def _record_turn(
                 "used_retrieval": used_retrieval,
                 "abstained": abstained,
                 "citations": citations,
+                "citation_count": len(citations),
             },
         )
         database.log_query(
@@ -572,7 +580,7 @@ def _record_turn(
             rewritten=rewritten,
             retrieved=retrieved,
             abstained=abstained,
-            citations=citations,
+            citations=len(citations),
             elapsed_ms=elapsed_ms,
         )
     except Exception as e:  # noqa: BLE001 —— 持久化失败不该让回答失败
@@ -792,7 +800,7 @@ async def _stream_graph(req: ChatRequest):
         rewritten=rewritten or "",
         retrieved=doc_count,
         abstained=abstained,
-        citations=len(citations),
+        citations=citations,
         elapsed_ms=int(elapsed * 1000),
         used_retrieval=doc_count > 0,
     )

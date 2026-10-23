@@ -4,7 +4,7 @@
 > 不是「能跑通」的玩具——每一层优化都有**可复现的评测数字**兜底。
 >
 > **作者：代益泉**（GitHub [@dai428](https://github.com/dai428)）· 独立完成全部设计、实现与评测
-> 📁 本机 `D:\Desktop\rag-demo` · 栈：LangGraph + LangChain + Chroma + BGE + FastAPI
+> 栈：LangGraph + LangChain + Chroma + BGE + FastAPI
 > 📄 License: MIT（见 [LICENSE](LICENSE)）
 
 ---
@@ -132,7 +132,7 @@ FastAPI ── 驱动 graph.astream(stream_mode=["updates", "messages", "custom"
 | **设计系统** | `styles.css` 只定义一组语义化 CSS 变量（`--bg` / `--panel` / `--ink` / `--brand`…），深浅两套主题只换变量值，组件样式不重复写两遍 |
 | **深色模式** | `useTheme` 首次跟随 `prefers-color-scheme`，手动切换后记忆到 localStorage；侧栏一键切换 |
 | **逻辑与视图分离** | 时间格式化、会话排序抽成 `lib/` 下的纯函数，Hook（`useTheme` / `useAutoScroll`）与组件解耦 |
-| **单元测试** | Vitest + React Testing Library，**23 个用例**覆盖纯逻辑、SSE 解析与关键交互；`npm run test` |
+| **单元测试** | Vitest + React Testing Library，**44 个用例**覆盖纯逻辑、SSE 解析、会话搜索/导出与关键交互；`npm run test` |
 | **代码规范** | ESLint 10 flat config + Prettier，`npm run lint` 零 warning；CI 里 lint / 格式 / 测试 / 构建四道门禁 |
 
 > 测试只覆盖「改了容易悄悄坏」的地方（时间格式化的边界、SSE 解析、富文本渲染、主题切换），
@@ -274,7 +274,8 @@ rag-demo/
 ### 1) 装依赖
 
 ```bash
-cd D:/Desktop/rag-demo
+git clone https://github.com/dai428/optics-rag-agent.git
+cd optics-rag-agent
 python -m venv .venv
 ./.venv/Scripts/python.exe -m pip install -r requirements.txt
 ```
@@ -288,10 +289,18 @@ cp .env.example .env
 
 ### 3) 建索引（首次或语料变更后）
 
+仓库不含私有论文语料（`data/docs/` 不公开），但带了一份**脱敏教学示例语料**
+`data/sample_docs/`、示例评测集 `data/sample_eval_set.json`，clone 后可直接跑通全链路：
+
 ```bash
 cd app
-../.venv/Scripts/python.exe -c "import knowledge_base as kb; kb.build_vectorstore(force=True)"
+# 用示例语料建索引（想换成自己的资料，把 CORPUS_DIR 指到你的目录即可）
+CORPUS_DIR=../data/sample_docs ../.venv/Scripts/python.exe -c "import knowledge_base as kb; kb.build_vectorstore(force=True)"
 ```
+
+> Windows PowerShell 里写成 `$env:CORPUS_DIR='../data/sample_docs'; ../.venv/Scripts/python.exe -c "..."`。
+> 其余可覆盖的路径变量见 `app/config.py`：`CHROMA_DIR`、`PARENT_STORE_DIR`、`MANIFEST_PATH`、`EVAL_SET`。
+> 不设 `CORPUS_DIR` 时默认读 `data/docs/`（作者本机私有语料，未公开）。
 
 ### 4) 构建前端
 

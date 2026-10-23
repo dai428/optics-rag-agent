@@ -6,6 +6,7 @@ import type { DocumentsInfo, IndexReport, ReadyInfo, SessionSummary } from '../t
 import DocumentsPanel from './DocumentsPanel'
 import ThemeToggle from './ThemeToggle'
 import { fmtTime } from '../lib/time'
+import { filterSessions } from '../lib/sessions'
 import type { Theme } from '../lib/useTheme'
 
 interface Props {
@@ -48,6 +49,8 @@ export default function Sidebar({
   const [editing, setEditing] = useState<string>('')
   const [draft, setDraft] = useState<string>('')
   const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const visibleSessions = filterSessions(sessions, query)
 
   const apiOk = health?.has_api_key === true
   const backendDown = health?.status === 'down'
@@ -83,20 +86,42 @@ export default function Sidebar({
           <button className="btn-new" onClick={onNew} disabled={busy} title="开启一段新对话">
             ＋ 新建会话
           </button>
+          <label className="session-search">
+            <span>搜索会话</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="标题或会话 ID"
+              aria-label="搜索会话标题或 ID"
+            />
+          </label>
+          <p className="session-count" role="status">
+            {visibleSessions.length} / {sessions.length} 个会话 · 仅搜索标题和 ID
+          </p>
         </header>
 
-        <nav className="session-list">
+        <nav className="session-list" aria-label="会话列表">
           {sessions.length === 0 && <p className="empty-tip">还没有会话，直接在右侧提问即可开始</p>}
-          {sessions.map((s) => (
+          {sessions.length > 0 && visibleSessions.length === 0 && (
+            <div className="empty-tip">
+              <p>没有匹配的会话</p>
+              <button onClick={() => setQuery('')}>清除搜索</button>
+            </div>
+          )}
+          {visibleSessions.map((s) => (
             <div
               key={s.id}
               className={`session-item${s.id === currentSid ? ' active' : ''}`}
-              onClick={() => onSelect(s.id)}
+              onClick={() => {
+                if (!busy) onSelect(s.id)
+              }}
               role="button"
-              tabIndex={0}
+              tabIndex={busy ? -1 : 0}
+              aria-disabled={busy}
               onKeyDown={(e) => {
                 // 键盘可达性：Enter 与空格都应触发（原先只处理了 Enter）
-                if (e.key === 'Enter' || e.key === ' ') {
+                if (!busy && e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
                   e.preventDefault()
                   onSelect(s.id)
                 }
@@ -123,6 +148,7 @@ export default function Sidebar({
                     className="session-title"
                     onDoubleClick={(e) => {
                       e.stopPropagation()
+                      if (busy) return
                       setEditing(s.id)
                       setDraft(s.title || '')
                     }}
@@ -138,11 +164,15 @@ export default function Sidebar({
               </div>
               <button
                 className="session-del"
+                disabled={busy}
                 title="删除会话（同时清除模型记忆）"
                 aria-label={`删除会话 ${s.title || ''}`}
                 onClick={(e) => {
                   e.stopPropagation()
-                  onDelete(s.id)
+                  if (
+                    window.confirm(`删除会话「${s.title || '新会话'}」？消息和模型记忆将一并清除。`)
+                  )
+                    onDelete(s.id)
                 }}
               >
                 ×

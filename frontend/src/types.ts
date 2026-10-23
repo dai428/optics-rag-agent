@@ -42,6 +42,8 @@ export interface DoneMeta {
   abstained?: boolean
   /** 拒答原因 */
   abstain_reason?: string
+  /** 落库时记录的引用条数（引用本体在 ChatMessage.citations） */
+  citation_count?: number
 }
 
 /** 一条聊天消息 */

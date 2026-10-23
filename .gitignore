@@ -34,6 +34,8 @@ data/app.db-shm
 
 # 运行期产物（本地临时文件，不入库）
 *.log
+# 工具链临时目录（如 frontend/.tmp 的 node 编译缓存）
+.tmp/
 snap_probe.txt
 eval_report*.json
 sample_eval_report.json
@@ -62,6 +64,9 @@ data/eval_set.json
 # notes/ 是基于私有语料的评测报告与面试八股，属于个人资料而非项目交付物。
 # 其中 notes/评测报告.html 引用了未发表论文的文档名与题目内容。
 notes/
+# learn/intern_hour_01 是面试冲刺用的个人练习讲义（含 JD 统计与"面试可直接说"话术），
+# 同属个人资料，不随仓库发布。其余 learn/ 教程脚本照常入库，供 clone 后学习。
+learn/intern_hour_01/
 
 # ── CI 配置暂不入库 ──────────────────────────────────
 # 原因：当前 gh 令牌缺少 workflow scope，无法推送含 .github/workflows/ 的分支。
@@ -69,6 +74,9 @@ notes/
 # 补齐权限（gh auth refresh -s workflow）后，移除本规则并重新提交该文件。
 .github/workflows/
 
-# �����������ͼ�����ÿ�Ƭ�ᱩ¶˽�������ļ����������
+# 以下几项不入库：公开截图目录、含私有语料文件名的离线工具脚本。
 browser-screenshots/
 learn/L3_docker/tools/offline_pull.py
+
+# UI verification screenshots (contain private corpus filenames)
+.verify/

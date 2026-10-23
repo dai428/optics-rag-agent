@@ -245,5 +245,75 @@ class RateLimitTests(_IsolatedTestBase):
         self.assertEqual(third.status_code, 429)
 
 
+class CitationPersistenceTests(_IsolatedTestBase):
+    """回归：历史会话必须能还原引用证据。
+
+    曾经的 bug：_record_turn 把 len(citations) 当作 meta.citations 入库，
+    前端 mapHistory 却按数组读，导致「刚答完能看到引用、重开会话就全没了」。
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.client = TestClient(main.app)
+
+    def test_record_turn_persists_full_citation_array(self):
+        citations = [
+            {
+                "index": 1,
+                "source": "fixture.md",
+                "rel_path": "fixture.md",
+                "section": "方法",
+                "page": None,
+                "chunk_id": "p-1",
+                "file_type": "markdown",
+                "score": 0.9,
+                "raw_score": 0.8,
+                "quote": "条件数的理论下界是 3。",
+            }
+        ]
+        main._record_turn("cite-1", "条件数下界？", "据资料，是 3。", citations=citations)
+
+        messages = storage.get_database().list_messages("cite-1")
+        assistant = [m for m in messages if m["role"] == "assistant"][0]
+
+        self.assertIsInstance(assistant["meta"]["citations"], list)
+        self.assertEqual(assistant["meta"]["citations"][0]["chunk_id"], "p-1")
+        self.assertEqual(assistant["meta"]["citation_count"], 1)
+
+    def test_query_log_still_records_count_not_array(self):
+        citations = [
+            {
+                "index": i,
+                "source": f"f{i}.md",
+                "rel_path": "",
+                "section": "",
+                "page": None,
+                "chunk_id": f"c{i}",
+                "file_type": "markdown",
+                "score": None,
+                "raw_score": None,
+                "quote": "q",
+            }
+            for i in (1, 2, 3)
+        ]
+        main._record_turn("cite-2", "问", "答", citations=citations)
+
+        metrics = storage.get_database().metrics()
+        self.assertEqual(metrics["avg_citations"], 3)
+        # 查询日志里存的仍是条数（数字），与 metrics 口径一致
+        recent = storage.get_database().recent_queries()
+        self.assertEqual(recent[0]["citations"], 3)
+
+    def test_empty_citations_is_empty_list_not_zero(self):
+        main._record_turn("cite-3", "闲聊", "你好")
+        assistant = [
+            m
+            for m in storage.get_database().list_messages("cite-3")
+            if m["role"] == "assistant"
+        ][0]
+        self.assertEqual(assistant["meta"]["citations"], [])
+        self.assertEqual(assistant["meta"]["citation_count"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
