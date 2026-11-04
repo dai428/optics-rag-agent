@@ -294,6 +294,17 @@ python -m venv .venv
 ./.venv/Scripts/python.exe -m pip install -r requirements.txt
 ```
 
+> **大陆网络**：建议显式指定一个可用镜像源，或失败时重试，例如
+> `-i https://pypi.tuna.tsinghua.edu.cn/simple`（镜像是否可用因网络环境而异，连不上就换官方源）。
+
+**要跑测试的话，再补装测试依赖**（`pytest` / `pytest-asyncio` / `httpx` 不在 `requirements.txt` 里，
+它们只在开发期需要，不影响服务运行）：
+
+```bash
+./.venv/Scripts/python.exe -m pip install pytest pytest-asyncio httpx
+./.venv/Scripts/python.exe -m pytest tests -q      # 86 passed
+```
+
 ### 2) 配密钥
 
 ```bash
